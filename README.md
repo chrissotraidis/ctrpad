@@ -261,10 +261,10 @@ to fill a widescreen display.
 ## Touch controls
 
 CTRPad provides separate safe-area-aware landscape defaults for iPhone and
-iPad. With **Simplified racing controls** enabled, touch anywhere in the lower
-steering-side half to place a horizontal analog steering slider under your
-thumb. Only left/right travel affects racing precision. Vertical travel still
-publishes D-pad menu directions, and the slider disappears on release.
+iPad. Touch anywhere in the lower steering-side half to place a horizontal
+analog steering slider under your thumb. Only left/right travel affects racing
+precision. Short vertical swipes publish D-pad menu directions, and the slider
+disappears on release.
 
 | Touch control | PlayStation input | Typical use |
 |---|---|---|
@@ -283,10 +283,9 @@ For a drift boost, steer past half lock, tap **Drift Toggle**, then tap
 **Boost Tap** when the meter reaches the red zone. Keep steering and tap Boost
 up to three times. Lifting the steering thumb releases Drift automatically.
 
-Turn **Simplified racing controls** off in Options to restore the original
-circular analog stick and physically held L/R Drift controls. Simplified and
-original layouts are stored independently so switching modes does not overwrite
-either customized layout.
+Turn **Classic controls** on in Options to restore the circular analog stick
+and physically held L/R Drift controls. Standard and Classic layouts are stored
+independently so switching modes does not overwrite either customized layout.
 
 ### Customize the layout
 

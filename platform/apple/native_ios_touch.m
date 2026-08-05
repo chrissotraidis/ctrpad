@@ -145,7 +145,7 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 @property(nonatomic, strong) UILabel *opacityValueLabel;
 @property(nonatomic, strong) UISegmentedControl *internalResolutionControl;
 @property(nonatomic, strong) UISwitch *touchEnabledSwitch;
-@property(nonatomic, strong) UISwitch *simplifiedControlsSwitch;
+@property(nonatomic, strong) UISwitch *classicControlsSwitch;
 @property(nonatomic, strong) UIButton *editLayoutButton;
 @end
 
@@ -645,14 +645,19 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	// Preserve the full analog range for racing. The outer ring additionally
 	// publishes retail D-pad edges so brief menu gestures are never dependent
 	// on the game's optional analog-to-button setting.
-	CGFloat directionThreshold = radius * 0.68;
-	if (dx <= -directionThreshold)
+	CGFloat horizontalDirectionThreshold = radius * 0.68;
+	// Horizontal steering leaves Y available for menu navigation. Use a shorter
+	// vertical throw so Up/Down remains comfortable without affecting analog Y.
+	CGFloat verticalDirectionThreshold = self.horizontalOnly
+	                                         ? MAX(24.0, self.bounds.size.height * 0.28)
+	                                         : horizontalDirectionThreshold;
+	if (dx <= -horizontalDirectionThreshold)
 		directionMask |= PLATFORM_INPUT_TOUCH_LEFT;
-	if (dx >= directionThreshold)
+	if (dx >= horizontalDirectionThreshold)
 		directionMask |= PLATFORM_INPUT_TOUCH_RIGHT;
-	if (verticalDirection <= -directionThreshold)
+	if (verticalDirection <= -verticalDirectionThreshold)
 		directionMask |= PLATFORM_INPUT_TOUCH_UP;
-	if (verticalDirection >= directionThreshold)
+	if (verticalDirection >= verticalDirectionThreshold)
 		directionMask |= PLATFORM_INPUT_TOUCH_DOWN;
 
 	unsigned int releasedDirections = self.directionMask & ~directionMask;
@@ -815,22 +820,22 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	touchEnabledRow.alignment = UIStackViewAlignmentCenter;
 	touchEnabledRow.distribution = UIStackViewDistributionEqualSpacing;
 
-	UILabel *simplifiedControlsLabel = [self sectionLabelWithText:@"Simplified racing controls"];
-	self.simplifiedControlsSwitch = [[UISwitch alloc] init];
-	self.simplifiedControlsSwitch.on = CTRPadTouch_ReadPreference(s_simplifiedRacingControlsKey, 1, 1) != 0;
-	self.simplifiedControlsSwitch.accessibilityIdentifier = @"ctrpad.touch.settings.simplified-racing";
-	self.simplifiedControlsSwitch.accessibilityLabel = @"Simplified racing controls";
-	[self.simplifiedControlsSwitch addTarget:self action:@selector(preferencesChanged) forControlEvents:UIControlEventValueChanged];
-	UIStackView *simplifiedControlsRow = [[UIStackView alloc] initWithArrangedSubviews:@[ simplifiedControlsLabel, self.simplifiedControlsSwitch ]];
-	simplifiedControlsRow.axis = UILayoutConstraintAxisHorizontal;
-	simplifiedControlsRow.alignment = UIStackViewAlignmentCenter;
-	simplifiedControlsRow.distribution = UIStackViewDistributionEqualSpacing;
+	UILabel *classicControlsLabel = [self sectionLabelWithText:@"Classic controls"];
+	self.classicControlsSwitch = [[UISwitch alloc] init];
+	self.classicControlsSwitch.on = CTRPadTouch_ReadPreference(s_simplifiedRacingControlsKey, 1, 1) == 0;
+	self.classicControlsSwitch.accessibilityIdentifier = @"ctrpad.touch.settings.classic-controls";
+	self.classicControlsSwitch.accessibilityLabel = @"Classic circular controls";
+	[self.classicControlsSwitch addTarget:self action:@selector(preferencesChanged) forControlEvents:UIControlEventValueChanged];
+	UIStackView *classicControlsRow = [[UIStackView alloc] initWithArrangedSubviews:@[ classicControlsLabel, self.classicControlsSwitch ]];
+	classicControlsRow.axis = UILayoutConstraintAxisHorizontal;
+	classicControlsRow.alignment = UIStackViewAlignmentCenter;
+	classicControlsRow.distribution = UIStackViewDistributionEqualSpacing;
 
-	UILabel *simplifiedControlsHelp = [[UILabel alloc] init];
-	simplifiedControlsHelp.text = @"Experimental: horizontal analog steering, tap-to-toggle Drift, and a separate Boost button.";
-	simplifiedControlsHelp.textColor = [UIColor colorWithWhite:0.68 alpha:1.0];
-	simplifiedControlsHelp.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightRegular];
-	simplifiedControlsHelp.numberOfLines = 0;
+	UILabel *classicControlsHelp = [[UILabel alloc] init];
+	classicControlsHelp.text = @"Restores the circular stick and physically held L/R Drift buttons.";
+	classicControlsHelp.textColor = [UIColor colorWithWhite:0.68 alpha:1.0];
+	classicControlsHelp.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightRegular];
+	classicControlsHelp.numberOfLines = 0;
 
 	self.handednessControl = [[UISegmentedControl alloc] initWithItems:@[ @"Steer left", @"Steer right" ]];
 	self.handednessControl.selectedSegmentIndex = CTRPadTouch_ReadPreference(s_touchHandednessKey,
@@ -917,8 +922,8 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 		changeDiscButton,
 		[self sectionLabelWithText:@"Touch controls"],
 		touchEnabledRow,
-		simplifiedControlsRow,
-		simplifiedControlsHelp,
+		classicControlsRow,
+		classicControlsHelp,
 		self.editLayoutButton,
 		[self sectionLabelWithText:@"Internal resolution"],
 		self.internalResolutionControl,
@@ -962,7 +967,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 		[self.sizeControl.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[self.opacitySlider.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[self.internalResolutionControl.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
-		[self.simplifiedControlsSwitch.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
+		[self.classicControlsSwitch.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[self.editLayoutButton.heightAnchor constraintGreaterThanOrEqualToConstant:48.0],
 		[changeDiscButton.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[resetButton.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
@@ -993,7 +998,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.internalResolutionControl.selectedSegmentIndex = appliedScale - 1;
 	[defaults setInteger:self.internalResolutionControl.selectedSegmentIndex forKey:s_internalResolutionScaleKey];
 	[defaults setBool:self.touchEnabledSwitch.on forKey:s_touchEnabledKey];
-	[defaults setBool:self.simplifiedControlsSwitch.on forKey:s_simplifiedRacingControlsKey];
+	[defaults setBool:!self.classicControlsSwitch.on forKey:s_simplifiedRacingControlsKey];
 	self.editLayoutButton.enabled = self.touchEnabledSwitch.on;
 	[self.overlayController applyPreferencesAndRebuildControls];
 }
@@ -1012,7 +1017,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.opacitySlider.value = (float)s_touchOpacityDefault;
 	[self updateOpacityValueLabel];
 	self.touchEnabledSwitch.on = YES;
-	self.simplifiedControlsSwitch.on = YES;
+	self.classicControlsSwitch.on = NO;
 	self.internalResolutionControl.selectedSegmentIndex = 0;
 	NativeRenderer_SetInternalResolutionScale(1);
 	self.editLayoutButton.enabled = YES;
