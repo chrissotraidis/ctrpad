@@ -44,7 +44,7 @@ the project or a build.
 - Native ARM64 application bundles for Apple Silicon macOS, iPhone, and iPad.
 - Native OpenGL on macOS and GLES 3 through SDL/UIKit on iOS and iPadOS.
 - Files-based disc selection with validation and non-destructive replacement.
-- Touch-anywhere analog steering, editable controls, Gas lock, handedness,
+- Touch-anywhere horizontal analog steering, editable controls, visible Gas lock, handedness,
   size, and 10%–100% opacity controls.
 - 1×, 2×, 3×, and 4× internal geometry resolution across macOS, iPhone, and
   iPad, with 4× as the Apple Silicon Mac default.
@@ -261,27 +261,32 @@ to fill a widescreen display.
 ## Touch controls
 
 CTRPad provides separate safe-area-aware landscape defaults for iPhone and
-iPad. Touch anywhere in the lower steering-side half to place the analog stick
-under your thumb. The stick follows the touch and disappears on release, so
-you never need to find a fixed control before steering.
+iPad. With **Simplified racing controls** enabled, touch anywhere in the lower
+steering-side half to place a horizontal analog steering slider under your
+thumb. Only left/right travel affects racing precision. Vertical travel still
+publishes D-pad menu directions, and the slider disappears on release.
 
 | Touch control | PlayStation input | Typical use |
 |---|---|---|
-| Steer | Left analog stick | Continuous steering |
-| Stick outer ring | D-pad | Menus and digital direction input |
+| Horizontal steer | Left analog stick X | Continuous steering |
+| Vertical steering gesture | D-pad up/down | Menu navigation |
 | **Gas ✕** | Cross | Accelerate and confirm |
 | **Brake □** | Square | Brake, reverse, and menu action |
 | **Item ○** | Circle | Use item and menu action |
 | **View △** | Triangle | Camera, skip, and menu action |
-| **L Drift / Boost** | L1 | Hop, drift, and boost |
-| **R Drift / Boost** | R1 | Alternate hop and drift side |
+| **Boost Tap** | L1 | Tap in the red zone while Drift is active |
+| **Drift Toggle** | R1 | Tap to begin a drift; tap again to release |
 | **Start / Pause** | Start | Start, advance, pause, or resume |
 | **Select** | Select | Retail Select input |
 
-On iPhone, the shoulder controls are labeled **Drift Hold** (R1) and
-**Boost Tap** (L1) to teach the power-slide technique: hold R1 to maintain the
-slide, then tap L1 when the meter is red. The original game reads the held and
-tapped shoulders separately, so both inputs remain available.
+For a drift boost, steer past half lock, tap **Drift Toggle**, then tap
+**Boost Tap** when the meter reaches the red zone. Keep steering and tap Boost
+up to three times. Lifting the steering thumb releases Drift automatically.
+
+Turn **Simplified racing controls** off in Options to restore the original
+circular analog stick and physically held L/R Drift controls. Simplified and
+original layouts are stored independently so switching modes does not overwrite
+either customized layout.
 
 ### Customize the layout
 
@@ -297,10 +302,11 @@ remains reachable when the gameplay overlay is hidden.
 
 ### Gas lock
 
-Hold **Gas ✕** for two seconds to lock acceleration. CTRPad confirms the lock
-with visual and haptic feedback. Tap Gas once to release it. All held inputs
-are released when controls are hidden or rebuilt, the editor opens, gameplay
-ends, or the app moves to the background.
+Hold **Gas ✕** for two seconds to lock acceleration. A ring fills around the
+button while it charges; the label changes to **Auto Gas** with visual and
+haptic confirmation when locked. Tap it once to release. All held inputs are
+released when controls are hidden or rebuilt, the editor opens, gameplay ends,
+or the app moves to the background.
 
 ## Controllers and local multiplayer
 

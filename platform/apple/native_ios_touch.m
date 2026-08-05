@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import <QuartzCore/QuartzCore.h>
 
 #include <math.h>
 
@@ -23,6 +24,7 @@ static NSString *const s_touchHandednessKey = @"CTRPadTouchHandedness";
 static NSString *const s_touchSizeKey = @"CTRPadTouchSize";
 static NSString *const s_touchOpacityKey = @"CTRPadTouchOpacity";
 static NSString *const s_touchEnabledKey = @"CTRPadTouchEnabled";
+static NSString *const s_simplifiedRacingControlsKey = @"CTRPadSimplifiedRacingControls";
 static NSString *const s_touchLayoutKeyPrefix = @"CTRPadTouchLayout";
 static NSString *const s_internalResolutionScaleKey = @"CTRPadInternalResolutionScale";
 static const NSTimeInterval s_gasLatchDelay = 2.0;
@@ -43,11 +45,19 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 @property(nonatomic, assign) BOOL inputPressed;
 @property(nonatomic, assign) BOOL inputLatched;
 @property(nonatomic, assign) BOOL holdToLatch;
+@property(nonatomic, assign) BOOL latchOnTap;
 @property(nonatomic, assign) BOOL layoutEditing;
 @property(nonatomic, assign) NSUInteger latchGeneration;
 @property(nonatomic, strong) UIColor *baseColor;
 @property(nonatomic, assign) CGFloat controlOpacity;
+@property(nonatomic, copy) NSString *releasedTitle;
+@property(nonatomic, copy) NSString *latchedTitle;
+@property(nonatomic, copy) NSString *latchEngagedAnnouncement;
+@property(nonatomic, copy) NSString *latchReleasedAnnouncement;
+@property(nonatomic, strong) CAShapeLayer *holdProgressLayer;
 - (void)updateAppearance;
+- (void)beginHoldProgress;
+- (void)stopHoldProgress;
 - (void)cancelInput;
 - (BOOL)accessibilityPressBriefly;
 - (BOOL)accessibilityPressThreeSeconds;
@@ -64,8 +74,10 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 @property(nonatomic, assign) unsigned int directionMask;
 @property(nonatomic, assign) BOOL layoutEditing;
 @property(nonatomic, assign) BOOL dynamicOriginActive;
+@property(nonatomic, assign) BOOL horizontalOnly;
 @property(nonatomic, assign) CGPoint restingCenter;
 @property(nonatomic, assign) CGFloat controlOpacity;
+@property(nonatomic, copy) void (^releaseHandler)(void);
 - (void)applyControlOpacity:(CGFloat)opacity;
 - (void)beginDynamicTouchAtPoint:(CGPoint)point inView:(UIView *)view;
 - (void)continueDynamicTouchAtPoint:(CGPoint)point inView:(UIView *)view;
@@ -94,8 +106,10 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 @property(nonatomic, assign) CGFloat controlScale;
 @property(nonatomic, assign) CGFloat controlOpacity;
 @property(nonatomic, assign) BOOL touchControlsEnabled;
+@property(nonatomic, assign) BOOL simplifiedRacingControls;
 @property(nonatomic, assign) BOOL layoutEditing;
 @property(nonatomic, strong) CTRPadTouchSteeringZoneView *steeringZone;
+@property(nonatomic, weak) CTRPadInputButton *driftButton;
 @property(nonatomic, strong) NSArray<UIView *> *editableControls;
 @property(nonatomic, strong) NSMutableArray<UIGestureRecognizer *> *editGestures;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSArray<NSNumber *> *> *layoutCenters;
@@ -110,6 +124,7 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 @property(nonatomic, strong) UIButton *editorDoneButton;
 - (void)applyPreferencesAndRebuildControls;
 - (void)resetControlState;
+- (void)releaseLatchedDrift;
 - (void)beginLayoutEditing;
 - (void)endLayoutEditing;
 - (void)resetCurrentLayout;
@@ -130,6 +145,7 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 @property(nonatomic, strong) UILabel *opacityValueLabel;
 @property(nonatomic, strong) UISegmentedControl *internalResolutionControl;
 @property(nonatomic, strong) UISwitch *touchEnabledSwitch;
+@property(nonatomic, strong) UISwitch *simplifiedControlsSwitch;
 @property(nonatomic, strong) UIButton *editLayoutButton;
 @end
 
@@ -220,7 +236,55 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	                             .CGColor;
 	[self setTitleColor:[UIColor colorWithWhite:1.0 alpha:self.inputLatched ? 1.0 : MIN(1.0, relativeOpacity)]
 	             forState:UIControlStateNormal];
+	NSString *title = self.inputLatched ? self.latchedTitle : self.releasedTitle;
+	if (title.length > 0)
+	{
+		[self setTitle:title forState:UIControlStateNormal];
+	}
 	self.alpha = self.inputPressed ? 0.92 : 1.0;
+}
+
+- (void)layoutSubviews
+{
+	[super layoutSubviews];
+	if (self.holdProgressLayer != nil)
+	{
+		CGRect ringBounds = CGRectInset(self.bounds, 4.0, 4.0);
+		self.holdProgressLayer.frame = self.bounds;
+		self.holdProgressLayer.path = [UIBezierPath bezierPathWithRoundedRect:ringBounds
+		                                                           cornerRadius:MIN(CGRectGetWidth(ringBounds), CGRectGetHeight(ringBounds)) * 0.5]
+		                                      .CGPath;
+	}
+}
+
+- (void)beginHoldProgress
+{
+	if (self.holdProgressLayer == nil)
+	{
+		return;
+	}
+	[self.holdProgressLayer removeAllAnimations];
+	self.holdProgressLayer.hidden = NO;
+	[CATransaction begin];
+	[CATransaction setDisableActions:YES];
+	self.holdProgressLayer.strokeEnd = 1.0;
+	[CATransaction commit];
+	CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"strokeEnd"];
+	animation.fromValue = @0.0;
+	animation.toValue = @1.0;
+	animation.duration = s_gasLatchDelay;
+	animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+	[self.holdProgressLayer addAnimation:animation forKey:@"ctrpad.gas-lock-progress"];
+}
+
+- (void)stopHoldProgress
+{
+	if (self.holdProgressLayer == nil)
+	{
+		return;
+	}
+	[self.holdProgressLayer removeAllAnimations];
+	self.holdProgressLayer.hidden = YES;
 }
 
 - (void)cancelInput
@@ -232,6 +296,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.inputPressed = NO;
 	self.inputLatched = NO;
 	self.accessibilityValue = @"Released";
+	[self stopHoldProgress];
 	[self updateAppearance];
 }
 
@@ -372,7 +437,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	                                  : UIColor.clearColor)
 	                             .CGColor;
 	self.knob.hidden = !visible;
-	self.label.hidden = !visible;
+	self.label.hidden = !visible || self.horizontalOnly;
 	if (visible)
 	{
 		self.knob.backgroundColor = [UIColor colorWithRed:0.16
@@ -540,7 +605,8 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 - (void)layoutSubviews
 {
 	[super layoutSubviews];
-	self.layer.cornerRadius = MIN(self.bounds.size.width, self.bounds.size.height) * 0.5;
+	self.layer.cornerRadius = self.horizontalOnly ? self.bounds.size.height * 0.5
+	                                           : MIN(self.bounds.size.width, self.bounds.size.height) * 0.5;
 	self.knob.layer.cornerRadius = self.knob.bounds.size.width * 0.5;
 	if (!self.trackingTouch)
 	{
@@ -553,13 +619,25 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	CGPoint center = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
 	CGFloat dx = point.x - center.x;
 	CGFloat dy = point.y - center.y;
-	CGFloat length = hypot(dx, dy);
-	CGFloat radius = MAX(1.0, MIN(self.bounds.size.width, self.bounds.size.height) * 0.5 - self.knob.bounds.size.width * 0.5 - 4.0);
+	CGFloat horizontalRadius = MAX(1.0, self.bounds.size.width * 0.5 - self.knob.bounds.size.width * 0.5 - 4.0);
+	CGFloat radialRadius = MAX(1.0, MIN(self.bounds.size.width, self.bounds.size.height) * 0.5 - self.knob.bounds.size.width * 0.5 - 4.0);
+	CGFloat radius = self.horizontalOnly ? horizontalRadius : radialRadius;
+	CGFloat verticalDirection = dy;
 	unsigned int directionMask = 0;
-	if (length > radius)
+	if (self.horizontalOnly)
 	{
-		dx = dx * radius / length;
-		dy = dy * radius / length;
+		dx = MIN(radius, MAX(-radius, dx));
+		dy = 0.0;
+	}
+	else
+	{
+		CGFloat length = hypot(dx, dy);
+		if (length > radius)
+		{
+			dx = dx * radius / length;
+			dy = dy * radius / length;
+		}
+		verticalDirection = dy;
 	}
 	self.knob.center = CGPointMake(center.x + dx, center.y + dy);
 	Platform_InputTouchLeftStick((int)lrint(dx * 32767.0 / radius), (int)lrint(dy * 32767.0 / radius), 1);
@@ -572,9 +650,9 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 		directionMask |= PLATFORM_INPUT_TOUCH_LEFT;
 	if (dx >= directionThreshold)
 		directionMask |= PLATFORM_INPUT_TOUCH_RIGHT;
-	if (dy <= -directionThreshold)
+	if (verticalDirection <= -directionThreshold)
 		directionMask |= PLATFORM_INPUT_TOUCH_UP;
-	if (dy >= directionThreshold)
+	if (verticalDirection >= directionThreshold)
 		directionMask |= PLATFORM_INPUT_TOUCH_DOWN;
 
 	unsigned int releasedDirections = self.directionMask & ~directionMask;
@@ -646,6 +724,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 
 - (void)releaseTouch
 {
+	BOOL wasTracking = self.trackingTouch;
 	self.accessibilitySteeringGeneration += 1;
 	self.trackingTouch = NO;
 	self.accessibilitySteering = NO;
@@ -663,6 +742,10 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 		self.directionMask = 0;
 	}
 	Platform_InputTouchLeftStick(0, 0, 0);
+	if (wasTracking && (self.releaseHandler != nil))
+	{
+		self.releaseHandler();
+	}
 }
 
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
@@ -731,6 +814,23 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	touchEnabledRow.axis = UILayoutConstraintAxisHorizontal;
 	touchEnabledRow.alignment = UIStackViewAlignmentCenter;
 	touchEnabledRow.distribution = UIStackViewDistributionEqualSpacing;
+
+	UILabel *simplifiedControlsLabel = [self sectionLabelWithText:@"Simplified racing controls"];
+	self.simplifiedControlsSwitch = [[UISwitch alloc] init];
+	self.simplifiedControlsSwitch.on = CTRPadTouch_ReadPreference(s_simplifiedRacingControlsKey, 1, 1) != 0;
+	self.simplifiedControlsSwitch.accessibilityIdentifier = @"ctrpad.touch.settings.simplified-racing";
+	self.simplifiedControlsSwitch.accessibilityLabel = @"Simplified racing controls";
+	[self.simplifiedControlsSwitch addTarget:self action:@selector(preferencesChanged) forControlEvents:UIControlEventValueChanged];
+	UIStackView *simplifiedControlsRow = [[UIStackView alloc] initWithArrangedSubviews:@[ simplifiedControlsLabel, self.simplifiedControlsSwitch ]];
+	simplifiedControlsRow.axis = UILayoutConstraintAxisHorizontal;
+	simplifiedControlsRow.alignment = UIStackViewAlignmentCenter;
+	simplifiedControlsRow.distribution = UIStackViewDistributionEqualSpacing;
+
+	UILabel *simplifiedControlsHelp = [[UILabel alloc] init];
+	simplifiedControlsHelp.text = @"Experimental: horizontal analog steering, tap-to-toggle Drift, and a separate Boost button.";
+	simplifiedControlsHelp.textColor = [UIColor colorWithWhite:0.68 alpha:1.0];
+	simplifiedControlsHelp.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightRegular];
+	simplifiedControlsHelp.numberOfLines = 0;
 
 	self.handednessControl = [[UISegmentedControl alloc] initWithItems:@[ @"Steer left", @"Steer right" ]];
 	self.handednessControl.selectedSegmentIndex = CTRPadTouch_ReadPreference(s_touchHandednessKey,
@@ -817,6 +917,8 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 		changeDiscButton,
 		[self sectionLabelWithText:@"Touch controls"],
 		touchEnabledRow,
+		simplifiedControlsRow,
+		simplifiedControlsHelp,
 		self.editLayoutButton,
 		[self sectionLabelWithText:@"Internal resolution"],
 		self.internalResolutionControl,
@@ -860,6 +962,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 		[self.sizeControl.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[self.opacitySlider.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[self.internalResolutionControl.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
+		[self.simplifiedControlsSwitch.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[self.editLayoutButton.heightAnchor constraintGreaterThanOrEqualToConstant:48.0],
 		[changeDiscButton.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[resetButton.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
@@ -890,6 +993,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.internalResolutionControl.selectedSegmentIndex = appliedScale - 1;
 	[defaults setInteger:self.internalResolutionControl.selectedSegmentIndex forKey:s_internalResolutionScaleKey];
 	[defaults setBool:self.touchEnabledSwitch.on forKey:s_touchEnabledKey];
+	[defaults setBool:self.simplifiedControlsSwitch.on forKey:s_simplifiedRacingControlsKey];
 	self.editLayoutButton.enabled = self.touchEnabledSwitch.on;
 	[self.overlayController applyPreferencesAndRebuildControls];
 }
@@ -901,12 +1005,14 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	[defaults removeObjectForKey:s_touchSizeKey];
 	[defaults removeObjectForKey:s_touchOpacityKey];
 	[defaults removeObjectForKey:s_touchEnabledKey];
+	[defaults removeObjectForKey:s_simplifiedRacingControlsKey];
 	[defaults removeObjectForKey:s_internalResolutionScaleKey];
 	self.handednessControl.selectedSegmentIndex = CTRPadTouchHandednessSteerLeft;
 	self.sizeControl.selectedSegmentIndex = CTRPadTouchSizeStandard;
 	self.opacitySlider.value = (float)s_touchOpacityDefault;
 	[self updateOpacityValueLabel];
 	self.touchEnabledSwitch.on = YES;
+	self.simplifiedControlsSwitch.on = YES;
 	self.internalResolutionControl.selectedSegmentIndex = 0;
 	NativeRenderer_SetInternalResolutionScale(1);
 	self.editLayoutButton.enabled = YES;
@@ -970,12 +1076,13 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	button.exclusiveTouch = NO;
 	button.baseColor = color;
 	button.controlOpacity = self.controlOpacity;
-	[button updateAppearance];
+	button.releasedTitle = title;
 	button.layer.borderWidth = 2.0;
 	button.titleLabel.font = [UIFont systemFontOfSize:14.0 weight:UIFontWeightBold];
 	button.titleLabel.numberOfLines = 2;
 	button.titleLabel.textAlignment = NSTextAlignmentCenter;
 	[button setTitle:title forState:UIControlStateNormal];
+	[button updateAppearance];
 	button.accessibilityValue = @"Released";
 	button.accessibilityCustomActions = @[
 		[[UIAccessibilityCustomAction alloc] initWithName:@"Press one second" target:button selector:@selector(accessibilityPressBriefly)],
@@ -1020,9 +1127,13 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 		button.inputLatched = NO;
 		button.inputPressed = NO;
 		button.accessibilityValue = @"Released";
+		[button stopHoldProgress];
 		[button updateAppearance];
 		Platform_InputTouchButton((unsigned int)button.tag, 0);
-		UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, @"Gas lock released.");
+		if (button.latchReleasedAnnouncement.length > 0)
+		{
+			UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, button.latchReleasedAnnouncement);
+		}
 		return;
 	}
 	if (button.inputPressed)
@@ -1034,14 +1145,30 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	button.accessibilityValue = @"Held";
 	[button updateAppearance];
 	Platform_InputTouchButton((unsigned int)button.tag, 1);
+	if (button.latchOnTap)
+	{
+		button.inputPressed = NO;
+		button.inputLatched = YES;
+		button.accessibilityValue = @"Active";
+		[button updateAppearance];
+		UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+		[feedback impactOccurred];
+		if (button.latchEngagedAnnouncement.length > 0)
+		{
+			UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, button.latchEngagedAnnouncement);
+		}
+		return;
+	}
 	if (button.holdToLatch)
 	{
+		[button beginHoldProgress];
 		NSUInteger generation = ++button.latchGeneration;
 		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(s_gasLatchDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 			if ((button.latchGeneration == generation) && button.inputPressed && !button.layoutEditing)
 			{
 				button.inputLatched = YES;
 				button.accessibilityValue = @"Gas locked";
+				[button stopHoldProgress];
 				[button updateAppearance];
 				UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
 				[feedback impactOccurred];
@@ -1059,6 +1186,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	}
 	CTRPadInputButton *button = (CTRPadInputButton *)sender;
 	button.latchGeneration += 1;
+	[button stopHoldProgress];
 	button.accessibilityHeld = NO;
 	button.accessibilityTapPending = NO;
 	if (button.layoutEditing || button.inputLatched || !button.inputPressed)
@@ -1069,6 +1197,25 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	button.accessibilityValue = @"Released";
 	[button updateAppearance];
 	Platform_InputTouchButton((unsigned int)button.tag, 0);
+}
+
+- (void)releaseLatchedDrift
+{
+	CTRPadInputButton *button = self.driftButton;
+	if (!self.simplifiedRacingControls || (button == nil) || !button.inputLatched)
+	{
+		return;
+	}
+	button.latchGeneration += 1;
+	button.inputLatched = NO;
+	button.inputPressed = NO;
+	button.accessibilityValue = @"Released";
+	[button updateAppearance];
+	Platform_InputTouchButton((unsigned int)button.tag, 0);
+	if (button.latchReleasedAnnouncement.length > 0)
+	{
+		UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, button.latchReleasedAnnouncement);
+	}
 }
 
 - (void)resetControlState
@@ -1180,6 +1327,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.controlScale = CTRPadTouch_ScaleForChoice(sizeChoice);
 	self.controlOpacity = CTRPadTouch_ReadOpacity();
 	self.touchControlsEnabled = CTRPadTouch_ReadPreference(s_touchEnabledKey, 1, 1) != 0;
+	self.simplifiedRacingControls = CTRPadTouch_ReadPreference(s_simplifiedRacingControlsKey, 1, 1) != 0;
 	BOOL phone = UIDevice.currentDevice.userInterfaceIdiom != UIUserInterfaceIdiomPad;
 	NSInteger requestedResolutionScale = CTRPadTouch_ReadPreference(s_internalResolutionScaleKey, 0, 3) + 1;
 	NSInteger appliedResolutionScale = NativeRenderer_SetInternalResolutionScale((int)requestedResolutionScale);
@@ -1189,6 +1337,12 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	}
 
 	CTRPadTouchStickView *stick = [[CTRPadTouchStickView alloc] init];
+	stick.horizontalOnly = self.simplifiedRacingControls;
+	if (stick.horizontalOnly)
+	{
+		stick.accessibilityLabel = @"Horizontal steering slider";
+		stick.accessibilityHint = @"Move left or right to steer. Vertical movement still navigates menus.";
+	}
 	[stick applyControlOpacity:self.controlOpacity];
 	CTRPadTouchSteeringZoneView *steeringZone = [[CTRPadTouchSteeringZoneView alloc] initWithFrame:CGRectZero];
 	steeringZone.multipleTouchEnabled = NO;
@@ -1202,12 +1356,37 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	CTRPadInputButton *square = [self buttonWithTitle:@"BRAKE\n□" mask:PLATFORM_INPUT_TOUCH_SQUARE color:[UIColor colorWithRed:0.93 green:0.19 blue:0.52 alpha:1.0]];
 	CTRPadInputButton *circle = [self buttonWithTitle:@"ITEM\n○" mask:PLATFORM_INPUT_TOUCH_CIRCLE color:[UIColor colorWithRed:0.93 green:0.16 blue:0.18 alpha:1.0]];
 	CTRPadInputButton *triangle = [self buttonWithTitle:@"VIEW\n△" mask:PLATFORM_INPUT_TOUCH_TRIANGLE color:[UIColor colorWithRed:0.08 green:0.68 blue:0.32 alpha:1.0]];
-	CTRPadInputButton *leftDrift = [self buttonWithTitle:(phone ? @"BOOST\nTAP" : @"L DRIFT / BOOST") mask:PLATFORM_INPUT_TOUCH_L1 color:[UIColor colorWithRed:0.94 green:0.59 blue:0.10 alpha:1.0]];
-	CTRPadInputButton *rightDrift = [self buttonWithTitle:(phone ? @"DRIFT\nHOLD" : @"R DRIFT / BOOST") mask:PLATFORM_INPUT_TOUCH_R1 color:[UIColor colorWithRed:0.94 green:0.59 blue:0.10 alpha:1.0]];
+	NSString *leftDriftTitle = self.simplifiedRacingControls ? @"BOOST\nTAP" : (phone ? @"BOOST\nTAP" : @"L DRIFT / BOOST");
+	NSString *rightDriftTitle = self.simplifiedRacingControls ? @"DRIFT\nTOGGLE" : (phone ? @"DRIFT\nHOLD" : @"R DRIFT / BOOST");
+	CTRPadInputButton *leftDrift = [self buttonWithTitle:leftDriftTitle mask:PLATFORM_INPUT_TOUCH_L1 color:[UIColor colorWithRed:0.94 green:0.59 blue:0.10 alpha:1.0]];
+	CTRPadInputButton *rightDrift = [self buttonWithTitle:rightDriftTitle mask:PLATFORM_INPUT_TOUCH_R1 color:[UIColor colorWithRed:0.94 green:0.59 blue:0.10 alpha:1.0]];
 	CTRPadInputButton *start = [self buttonWithTitle:@"START\nPAUSE" mask:PLATFORM_INPUT_TOUCH_START color:[UIColor colorWithWhite:0.08 alpha:1.0]];
 	CTRPadInputButton *select = [self buttonWithTitle:@"SELECT" mask:PLATFORM_INPUT_TOUCH_SELECT color:[UIColor colorWithWhite:0.08 alpha:1.0]];
 	UIButton *settings = [self utilityButtonWithTitle:@"OPTIONS" action:@selector(presentTouchSettings)];
 	cross.holdToLatch = YES;
+	cross.latchedTitle = @"AUTO\nGAS";
+	cross.latchEngagedAnnouncement = @"Gas locked. Tap Gas to release.";
+	cross.latchReleasedAnnouncement = @"Gas lock released.";
+	CAShapeLayer *gasProgress = [CAShapeLayer layer];
+	gasProgress.fillColor = UIColor.clearColor.CGColor;
+	gasProgress.strokeColor = UIColor.whiteColor.CGColor;
+	gasProgress.lineWidth = 4.0;
+	gasProgress.lineCap = kCALineCapRound;
+	gasProgress.hidden = YES;
+	cross.holdProgressLayer = gasProgress;
+	[cross.layer addSublayer:gasProgress];
+	if (self.simplifiedRacingControls)
+	{
+		rightDrift.latchOnTap = YES;
+		rightDrift.latchedTitle = @"DRIFT\nACTIVE";
+		rightDrift.latchEngagedAnnouncement = @"Drift active. Tap Boost in the red zone.";
+		rightDrift.latchReleasedAnnouncement = @"Drift released.";
+	}
+	self.driftButton = rightDrift;
+	__weak CTRPadTouchOverlayViewController *weakSelf = self;
+	stick.releaseHandler = ^{
+		[weakSelf releaseLatchedDrift];
+	};
 
 	cross.accessibilityIdentifier = @"ctrpad.touch.cross";
 	square.accessibilityIdentifier = @"ctrpad.touch.square";
@@ -1224,8 +1403,12 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	square.accessibilityLabel = @"Brake, PlayStation Square";
 	circle.accessibilityLabel = @"Item, PlayStation Circle";
 	triangle.accessibilityLabel = @"View, PlayStation Triangle";
-	leftDrift.accessibilityLabel = phone ? @"Boost, tap while holding Drift, PlayStation L1" : @"Left drift or boost, PlayStation L1";
-	rightDrift.accessibilityLabel = phone ? @"Drift, hold while steering, PlayStation R1" : @"Right drift or boost, PlayStation R1";
+	leftDrift.accessibilityLabel = self.simplifiedRacingControls
+	                                   ? @"Boost, tap while Drift is active, PlayStation L1"
+	                                   : (phone ? @"Boost, tap while holding Drift, PlayStation L1" : @"Left drift or boost, PlayStation L1");
+	rightDrift.accessibilityLabel = self.simplifiedRacingControls
+	                                    ? @"Drift toggle, PlayStation R1"
+	                                    : (phone ? @"Drift, hold while steering, PlayStation R1" : @"Right drift or boost, PlayStation R1");
 	select.accessibilityLabel = @"PlayStation Select";
 
 	NSArray<UIView *> *controls = @[ stick, cross, square, circle, triangle, leftDrift, rightDrift, start, select, settings ];
@@ -1272,7 +1455,8 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 {
 	NSString *device = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ? @"tablet" : @"phone";
 	NSString *grip = self.handedness == CTRPadTouchHandednessSteerRight ? @"right" : @"left";
-	return [NSString stringWithFormat:@"%@-%@-v1", device, grip];
+	NSString *mode = self.simplifiedRacingControls ? @"-simplified" : @"";
+	return [NSString stringWithFormat:@"%@-%@%@-v1", device, grip, mode];
 }
 
 - (NSString *)layoutStorageKey
@@ -1373,7 +1557,9 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	BOOL phone = UIDevice.currentDevice.userInterfaceIdiom != UIUserInterfaceIdiomPad;
 	CGRect safe = [self usableBounds];
 	CGFloat scale = self.controlScale;
-	CGSize stickSize = [self sizeForControl:@"ctrpad.touch.stick" baseSize:CGSizeMake(174.0 * scale, 174.0 * scale)];
+	CGSize stickBaseSize = self.simplifiedRacingControls ? CGSizeMake(206.0 * scale, 104.0 * scale)
+	                                                    : CGSizeMake(174.0 * scale, 174.0 * scale);
+	CGSize stickSize = [self sizeForControl:@"ctrpad.touch.stick" baseSize:stickBaseSize];
 	CGSize driftSize = [self sizeForControl:@"ctrpad.touch.l1" baseSize:CGSizeMake(144.0 * scale, MAX(48.0, 54.0 * scale))];
 	CGSize rightDriftSize = [self sizeForControl:@"ctrpad.touch.r1" baseSize:CGSizeMake(144.0 * scale, MAX(48.0, 54.0 * scale))];
 	CGSize gasSize = [self sizeForControl:@"ctrpad.touch.cross" baseSize:CGSizeMake(92.0 * scale, 92.0 * scale)];
@@ -1714,7 +1900,11 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 
 - (void)resetAllLayouts
 {
-	for (NSString *profile in @[ @"phone-left-v1", @"phone-right-v1", @"tablet-left-v1", @"tablet-right-v1" ])
+	for (NSString *profile in @[
+		     @"phone-left-v1", @"phone-right-v1", @"tablet-left-v1", @"tablet-right-v1",
+		     @"phone-left-simplified-v1", @"phone-right-simplified-v1",
+		     @"tablet-left-simplified-v1", @"tablet-right-simplified-v1"
+	     ])
 	{
 		NSString *key = [NSString stringWithFormat:@"%@.%@", s_touchLayoutKeyPrefix, profile];
 		[NSUserDefaults.standardUserDefaults removeObjectForKey:key];
