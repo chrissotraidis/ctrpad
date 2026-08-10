@@ -519,6 +519,7 @@ performance, thermals, or device signing.
 | [`platform/apple/`](platform/apple/) | macOS/iOS integration, property lists, touch UI, and asset catalog |
 | [`docs/INSTALL-MACOS.md`](docs/INSTALL-MACOS.md) | macOS build, install, controls, and packaging guide |
 | [`docs/INSTALL-IOS.md`](docs/INSTALL-IOS.md) | iOS/iPadOS build, signing, sideload, and device guide |
+| [`docs/ANDROID-FEASIBILITY.md`](docs/ANDROID-FEASIBILITY.md) | Source-backed Android scope, estimates, risks, phases, and acceptance gates |
 | [`docs/history/`](docs/history/) | Complete Apple-port campaign history |
 | [`docs/parity/`](docs/parity/) | Timestamped implementation and validation evidence |
 | [`package-ios.sh`](package-ios.sh) | Retail-free unsigned or user-signed IPA creation |
