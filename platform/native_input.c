@@ -958,6 +958,8 @@ internal s32 NativeInput_FindSlotForDeviceIndex(Sint32 deviceIndex)
 internal void NativeInput_CloseController(s32 slot)
 {
 	struct NativeInputController *controller;
+	const char *name;
+	s32 connected;
 
 	if ((slot < 0) || (slot >= NATIVE_INPUT_MAX_CONTROLLERS))
 	{
@@ -967,6 +969,13 @@ internal void NativeInput_CloseController(s32 slot)
 	controller = &s_controllers[slot];
 	if (controller->controller != NULL)
 	{
+		if (Platform_LogIsOpen())
+		{
+			name = SDL_GetGamepadName(controller->controller);
+			connected = SDL_GamepadConnected(controller->controller) ? 1 : 0;
+			Platform_Log("[CTR Input] controller-close slot=%d instance=%u connected=%d name=%s\n", slot + 1,
+			             (unsigned int)controller->instanceId, connected, name != NULL ? name : "unknown");
+		}
 		SDL_CloseGamepad(controller->controller);
 	}
 
@@ -980,6 +989,23 @@ internal void NativeInput_CloseController(s32 slot)
 	{
 		s_lastActiveControllerSlot = -1;
 	}
+}
+
+internal s32 NativeInput_CloseDisconnectedControllers(void)
+{
+	s32 closed = 0;
+	s32 slot;
+
+	for (slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
+	{
+		if ((s_controllers[slot].controller != NULL) && !SDL_GamepadConnected(s_controllers[slot].controller))
+		{
+			NativeInput_CloseController(slot);
+			closed++;
+		}
+	}
+
+	return closed;
 }
 
 internal void NativeInput_OpenController(SDL_JoystickID instanceId, s32 slot)
@@ -1015,6 +1041,12 @@ internal void NativeInput_OpenController(SDL_JoystickID instanceId, s32 slot)
 	controller->switchingAnalog = 0;
 	s_controllerToSlotMapping[slot] = controller->instanceId;
 	NativeInput_AssignKeyboardForController(slot, NativeInput_SharePrimaryInputSources());
+	if (Platform_LogIsOpen())
+	{
+		const char *name = SDL_GetGamepadName(controller->controller);
+		Platform_Log("[CTR Input] controller-open slot=%d instance=%u name=%s\n", slot + 1,
+		             (unsigned int)controller->instanceId, name != NULL ? name : "unknown");
+	}
 }
 
 internal void NativeInput_OpenKnownControllers(void)
@@ -1116,6 +1148,7 @@ void Platform_InputUpdate(void)
 	{
 		return;
 	}
+	NativeInput_CloseDisconnectedControllers();
 
 	if (s_installedSnapshotsActive != 0)
 	{
@@ -1188,12 +1221,17 @@ void Platform_InputSuspend(void)
 
 void Platform_InputResume(void)
 {
-	// The next ordinary update samples current keyboard/gamepad state. Clear
-	// only transport edges accumulated before the foreground boundary.
+	// Clear transport edges accumulated before the foreground boundary, then
+	// repair any controller ownership whose disconnect arrived while suspended.
 	NativeInput_ClearKeyboardLatch();
 	NativeInput_ResetMouseButtons();
 	NativeInput_ResetTouchContacts();
 	s_submitNameKey = 0;
+	if (s_inputInitialized != 0)
+	{
+		NativeInput_CloseDisconnectedControllers();
+		NativeInput_OpenKnownControllers();
+	}
 }
 
 void Platform_InputControllerAdded(int deviceIndex)
@@ -1205,6 +1243,11 @@ void Platform_InputControllerAdded(int deviceIndex)
 		return;
 	}
 
+	if (Platform_LogIsOpen())
+	{
+		Platform_Log("[CTR Input] controller-added instance=%u\n", (unsigned int)(SDL_JoystickID)deviceIndex);
+	}
+	NativeInput_CloseDisconnectedControllers();
 	slot = NativeInput_FindSlotForDeviceIndex(deviceIndex);
 	if (slot >= 0)
 	{
@@ -1215,6 +1258,11 @@ void Platform_InputControllerAdded(int deviceIndex)
 void Platform_InputControllerRemoved(int instanceId)
 {
 	s32 slot;
+
+	if (Platform_LogIsOpen())
+	{
+		Platform_Log("[CTR Input] controller-removed instance=%u\n", (unsigned int)(SDL_JoystickID)instanceId);
+	}
 
 	for (slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
 	{
@@ -1435,6 +1483,8 @@ internal s32 NativeInput_RunVirtualControllerSelfTest(void)
 	struct NativeInputVirtualRumbleProbe rumbleProbe = {0};
 	SDL_VirtualJoystickDesc virtualDesc;
 	SDL_JoystickID virtualId = 0;
+	SDL_JoystickID reconnectedVirtualId = 0;
+	SDL_JoystickID secondVirtualId = 0;
 	SDL_Joystick *virtualJoystick = NULL;
 	const char *failure = NULL;
 	unsigned char rumbleTable[2] = {0x40, 0x80};
@@ -1549,6 +1599,48 @@ internal s32 NativeInput_RunVirtualControllerSelfTest(void)
 		goto CLEANUP;
 	}
 
+	// A sleeping wireless controller can disappear before its queued removal
+	// event reaches the host. Its replacement must reclaim the disconnected
+	// slot instead of silently becoming player 2.
+	if (!SDL_DetachVirtualJoystick(virtualId))
+	{
+		failure = "detach stale virtual gamepad";
+		goto CLEANUP;
+	}
+	virtualId = 0;
+	reconnectedVirtualId = SDL_AttachVirtualJoystick(&virtualDesc);
+	if (reconnectedVirtualId == 0)
+	{
+		failure = "attach replacement virtual gamepad";
+		goto CLEANUP;
+	}
+	Platform_InputControllerAdded(reconnectedVirtualId);
+	if ((s_controllers[0].controller == NULL) || (s_controllers[0].instanceId != reconnectedVirtualId) ||
+	    ((SDL_JoystickID)s_controllerToSlotMapping[0] != reconnectedVirtualId) || (s_controllers[1].controller != NULL))
+	{
+		failure = "stale virtual gamepad did not reclaim player 1";
+		goto CLEANUP;
+	}
+
+	secondVirtualId = SDL_AttachVirtualJoystick(&virtualDesc);
+	if (secondVirtualId == 0)
+	{
+		failure = "attach second virtual gamepad";
+		goto CLEANUP;
+	}
+	Platform_InputControllerAdded(secondVirtualId);
+	if ((s_controllers[0].instanceId != reconnectedVirtualId) || (s_controllers[1].instanceId != secondVirtualId))
+	{
+		failure = "connected player 1 was displaced by player 2";
+		goto CLEANUP;
+	}
+	Platform_InputControllerRemoved(secondVirtualId);
+	if ((s_controllers[0].instanceId != reconnectedVirtualId) || (s_controllers[1].controller != NULL))
+	{
+		failure = "second virtual gamepad removal changed player 1";
+		goto CLEANUP;
+	}
+
 CLEANUP:
 	Platform_InputTouchSetEnabled(0);
 	for (slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
@@ -1562,6 +1654,14 @@ CLEANUP:
 	if ((virtualId != 0) && !SDL_DetachVirtualJoystick(virtualId) && (failure == NULL))
 	{
 		failure = "detach virtual gamepad";
+	}
+	if ((reconnectedVirtualId != 0) && !SDL_DetachVirtualJoystick(reconnectedVirtualId) && (failure == NULL))
+	{
+		failure = "detach replacement virtual gamepad";
+	}
+	if ((secondVirtualId != 0) && !SDL_DetachVirtualJoystick(secondVirtualId) && (failure == NULL))
+	{
+		failure = "detach second virtual gamepad";
 	}
 	SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
 
@@ -1840,7 +1940,7 @@ int Platform_InputRunSelfTest(void)
 		return 1;
 	}
 
-	printf("[CTR Input] self-test passed: metadata-key=%d legacy-enter=%d migration-enter=%d live-start=retail tap-latch=shift+right until-retail-poll aliases=17 remap+duplicate+reset=passed held=shift+d+r alias-tap=shift+d mouse=gas+brake+item+l1+r1 primary-share=keyboard+mouse+touch+gamepad virtual-gamepad=buttons+axes+rumble+hotplug\n",
+	printf("[CTR Input] self-test passed: metadata-key=%d legacy-enter=%d migration-enter=%d live-start=retail tap-latch=shift+right until-retail-poll aliases=17 remap+duplicate+reset=passed held=shift+d+r alias-tap=shift+d mouse=gas+brake+item+l1+r1 primary-share=keyboard+mouse+touch+gamepad virtual-gamepad=buttons+axes+rumble+hotplug stale-reclaim=player1 multiplayer=preserved\n",
 	       SDL_SCANCODE_A, SDL_SCANCODE_RETURN, SDL_SCANCODE_RETURN);
 	return 0;
 }
