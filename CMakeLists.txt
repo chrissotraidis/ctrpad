@@ -322,6 +322,7 @@ target_compile_definitions(ctr_native PRIVATE
     BUILD=926
     CTR_INTERNAL
     CTR_NATIVE_VERSION=\"${CTR_NATIVE_VERSION}\"
+    CTR_NATIVE_SOURCE_IDENTITY=\"${CTR_NATIVE_SOURCE_IDENTITY}\"
     CTR_NATIVE_BUILD_ID=\"${CTR_NATIVE_BUILD_ID}\"
 )
 if(CTR_NATIVE_RENDERER_GLES)
@@ -385,6 +386,7 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_test(NAME ctr_native_particle_pool COMMAND $<TARGET_FILE:ctr_native> --self-test-particle-pool)
     add_test(NAME ctr_native_version COMMAND $<TARGET_FILE:ctr_native> --version)
     set_tests_properties(ctr_native_version PROPERTIES PASS_REGULAR_EXPRESSION "^CTR Native ")
     add_test(NAME ctr_native_state_digest COMMAND $<TARGET_FILE:ctr_native> --self-test-state-digest)

@@ -12,12 +12,48 @@
 #include "platform/native_win32.h"
 #endif
 
+#ifdef _WIN32
+static SRWLOCK s_logLock = SRWLOCK_INIT;
+static void Platform_LogLock(void) { AcquireSRWLockExclusive(&s_logLock); }
+static void Platform_LogUnlock(void) { ReleaseSRWLockExclusive(&s_logLock); }
+#else
+#include <pthread.h>
+static pthread_mutex_t s_logLock = PTHREAD_MUTEX_INITIALIZER;
+static void Platform_LogLock(void) { pthread_mutex_lock(&s_logLock); }
+static void Platform_LogUnlock(void) { pthread_mutex_unlock(&s_logLock); }
+#endif
+
 global_variable FILE *s_logStream = NULL;
 global_variable char s_logPath[512]; // TODO(aalhendi): yeah this is an issue waiting to happen. w/e
 global_variable char s_logArchivePath[512];
 global_variable uint64_t s_logStartMilliseconds;
 
 #define NATIVE_LOG_ARCHIVE_COUNT 4
+#define NATIVE_LOG_MAX_BYTES (8L * 1024L * 1024L)
+
+// Inspect only the bounded tail; missing shutdown means interrupted, not proven crash.
+internal const char *Platform_LogPreviousStatus(void)
+{
+	char tail[256];
+	FILE *previous = fopen(s_logPath, "rb");
+	long size;
+	size_t count;
+	if (previous == NULL) return "unavailable";
+	if (fseek(previous, 0, SEEK_END) != 0 || (size = ftell(previous)) < 0)
+	{
+		fclose(previous);
+		return "unknown";
+	}
+	if (fseek(previous, size > 255 ? size - 255 : 0, SEEK_SET) != 0)
+	{
+		fclose(previous);
+		return "unknown";
+	}
+	count = fread(tail, 1, sizeof(tail) - 1, previous);
+	tail[count] = 0;
+	fclose(previous);
+	return strstr(tail, "[INFO] [CTR Session] clean_shutdown=yes\n") != NULL ? "clean" : "interrupted-or-legacy";
+}
 
 internal uint64_t Platform_LogWallMilliseconds(void)
 {
@@ -114,10 +150,26 @@ internal void Platform_LogWrite(FILE *consoleStream, const char *level, const ch
 	OutputDebugStringA(text);
 #endif
 
+	Platform_LogLock();
 	fputs(text, stream);
 
 	if (s_logStream != NULL)
 	{
+		// Keep five bounded segments, including long-running sessions.
+		if (ftell(s_logStream) >= NATIVE_LOG_MAX_BYTES)
+		{
+			fclose(s_logStream);
+			s_logStream = NULL;
+			Platform_LogRotateExisting();
+			s_logStream = fopen(s_logPath, "wb");
+			if (s_logStream == NULL)
+			{
+				fputs("[CTR Log] cannot reopen rotated log\n", stderr);
+				Platform_LogUnlock();
+				return;
+			}
+			fputs("[CTR Log] continuing current session after size rotation\n", s_logStream);
+		}
 		char wallTime[40];
 		uint64_t wallMilliseconds = Platform_LogWallMilliseconds();
 		uint64_t elapsedMilliseconds = wallMilliseconds >= s_logStartMilliseconds ? wallMilliseconds - s_logStartMilliseconds : 0;
@@ -129,6 +181,7 @@ internal void Platform_LogWrite(FILE *consoleStream, const char *level, const ch
 		fputs(text, s_logStream);
 		fflush(s_logStream);
 	}
+	Platform_LogUnlock();
 }
 
 internal void Platform_LogV(FILE *consoleStream, const char *level, const char *fmt, va_list args)
@@ -190,6 +243,8 @@ int Platform_LogIsOpen(void)
 
 void Platform_LogInit(const char *appName)
 {
+	const char *previousStatus;
+	if (s_logStream != NULL) return;
 	if (s_logPath[0] == '\0')
 	{
 		int written = snprintf(s_logPath, sizeof(s_logPath), "%s.log", appName);
@@ -202,6 +257,7 @@ void Platform_LogInit(const char *appName)
 		}
 	}
 
+	previousStatus = Platform_LogPreviousStatus();
 	Platform_LogRotateExisting();
 	s_logStream = fopen(s_logPath, "wb");
 
@@ -212,28 +268,34 @@ void Platform_LogInit(const char *appName)
 	}
 
 	s_logStartMilliseconds = Platform_LogWallMilliseconds();
+	Platform_Log("[CTR Session] previous=%s max_segment_bytes=%ld\n", previousStatus, NATIVE_LOG_MAX_BYTES);
 	Platform_Log("[CTR Log] session opened path=%s previous=%s archives=%d\n", s_logPath,
 	             s_logArchivePath[0] != '\0' ? s_logArchivePath : "none", NATIVE_LOG_ARCHIVE_COUNT);
 }
 
 void Platform_LogShutdown(void)
 {
-	Platform_LogWarn("---- LOG CLOSED ----\n");
+	if (s_logStream == NULL) return;
+	Platform_Log("[CTR Session] clean_shutdown=yes\n");
 
+	Platform_LogLock();
 	if (s_logStream != NULL)
 	{
 		fclose(s_logStream);
 	}
 
 	s_logStream = NULL;
+	Platform_LogUnlock();
 }
 
 void Platform_LogFlush(void)
 {
+	Platform_LogLock();
 	if (s_logStream != NULL)
 	{
 		fflush(s_logStream);
 	}
+	Platform_LogUnlock();
 }
 
 void Platform_Log(const char *fmt, ...)

@@ -1456,3 +1456,5 @@ void VehPhysGeneral_JumpAndFriction(struct Thread *thread, struct Driver *driver
 void CS_LoadBoss(const struct BossCutsceneData *bcd);
 
 #endif
+
+int Particle_RunPoolSelfTest(void);

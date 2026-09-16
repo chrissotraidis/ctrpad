@@ -1,4 +1,5 @@
 #include <common.h>
+#include <stdlib.h>
 
 enum
 {
@@ -229,12 +230,53 @@ void Particle_FuncPtr_ExhaustUnderwater(struct Particle *p)
 }
 
 
+// Check pool membership numerically before dereferencing a suspect link. The
+// fault in issue #36 occurs while returning an oscillator to this free list.
+static int Particle_PoolContains(const struct JitPool *pool, const void *item, size_t itemSize)
+{
+	uintptr_t base = (uintptr_t)pool->ptrPoolData;
+	uintptr_t address = (uintptr_t)item;
+	size_t offset;
+	if (!base || address < base || pool->poolSize <= 0 || pool->maxItems <= 0 || pool->itemSize < itemSize)
+		return 0;
+	offset = address - base;
+	return offset < (size_t)pool->poolSize && itemSize <= (size_t)pool->poolSize - offset &&
+	       offset % pool->itemSize == 0 && offset / pool->itemSize < (size_t)pool->maxItems;
+}
+
+static int Particle_OscillatorChainValid(const struct JitPool *pool, const struct ParticleOscillator *osc)
+{
+	unsigned count = 0;
+	while (osc != NULL)
+	{
+		// At most one oscillator for each of the eleven particle axes.
+		if (++count > 11 || !Particle_PoolContains(pool, osc, sizeof(*osc))) return 0;
+		osc = osc->next;
+	}
+	return 1;
+}
+
+static void Particle_PoolFault(const char *reason)
+{
+	struct GameTracker *gt = sdata->gGT;
+	Platform_LogError("[CTR Particle] invalid_pool reason=%s frame=%u level=%d mode=0x%x particles=%d particle_free=%d oscillator_free=%d; stopping before unsafe access\n",
+	                  reason, (unsigned)sdata->frameCounter, gt->levelID, (unsigned)gt->gameMode1,
+	                  gt->numParticles, gt->JitPools.particle.free.count, gt->JitPools.oscillator.free.count);
+	Platform_LogFlush();
+	abort();
+}
+
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8003eeb0-0x8003eefc.
 void Particle_OnDestroy(struct Particle *p)
 {
 	struct ParticleOscillator *osc;
 
 	osc = p->oscillator;
+	if (!Particle_OscillatorChainValid(&sdata->gGT->JitPools.oscillator, osc))
+		Particle_PoolFault("destroy-oscillator-chain");
+	if (sdata->gGT->JitPools.oscillator.free.first != NULL &&
+	    !Particle_PoolContains(&sdata->gGT->JitPools.oscillator, sdata->gGT->JitPools.oscillator.free.first, sizeof(*osc)))
+		Particle_PoolFault("oscillator-free-head");
 
 	while (osc != NULL)
 	{
@@ -430,6 +472,8 @@ void Particle_UpdateList(struct Particle **listHead, struct Particle *p)
 
 	while (p != NULL)
 	{
+		if (!Particle_PoolContains(&sdata->gGT->JitPools.particle, p, sizeof(*p)))
+			Particle_PoolFault("update-particle");
 		struct Particle *next = p->next;
 		u16 flagsSetColor;
 		u32 axisFlags;
@@ -463,6 +507,8 @@ void Particle_UpdateList(struct Particle **listHead, struct Particle *p)
 
 		axisFlags = Particle_GetAxisFlags(p);
 		osc = p->oscillator;
+		if (!Particle_OscillatorChainValid(&sdata->gGT->JitPools.oscillator, osc))
+			Particle_PoolFault("update-oscillator-chain");
 
 		for (int axisIndex = 0; axisFlags != 0; axisIndex++)
 		{
@@ -516,6 +562,9 @@ void Particle_UpdateList(struct Particle **listHead, struct Particle *p)
 		continue;
 
 	destroyParticle:
+		if (sdata->gGT->JitPools.particle.free.first != NULL &&
+		    !Particle_PoolContains(&sdata->gGT->JitPools.particle, sdata->gGT->JitPools.particle.free.first, sizeof(*p)))
+			Particle_PoolFault("particle-free-head");
 		Particle_OnDestroy(p);
 		LIST_AddFront(&sdata->gGT->JitPools.particle.free, (struct Item *)p);
 		sdata->gGT->numParticles--;
@@ -539,6 +588,55 @@ void Particle_UpdateAllParticles(void)
 	Particle_UpdateList(&gGT->particleList_heatWarp, gGT->particleList_heatWarp);
 }
 
+
+int Particle_RunPoolSelfTest(void)
+{
+	struct ParticleOscillator slots[2] = {0};
+	struct JitPool pool = {0};
+	pool.ptrPoolData = slots;
+	pool.poolSize = sizeof(slots);
+	pool.itemSize = sizeof(slots[0]);
+	pool.maxItems = 2;
+	slots[0].next = &slots[1];
+	if (!Particle_OscillatorChainValid(&pool, slots) ||
+	    !Particle_PoolContains(&pool, &slots[1], sizeof(slots[1])) ||
+	    Particle_PoolContains(&pool, (char *)slots + 1, sizeof(slots[0])) ||
+	    Particle_PoolContains(&pool, slots + 2, sizeof(slots[0]))) return 1;
+	slots[1].next = (struct ParticleOscillator *)(uintptr_t)0x110000100u;
+	if (Particle_OscillatorChainValid(&pool, slots)) return 1;
+	slots[1].next = slots;
+	if (Particle_OscillatorChainValid(&pool, slots)) return 1;
+	pool.itemSize = 0;
+	if (Particle_PoolContains(&pool, slots, sizeof(slots[0]))) return 1;
+	// Exercise the production destruction path with two live particles and
+	// two oscillators, proving that valid cleanup still restores both pools.
+	{
+		static struct GameTracker testGT;
+		struct GameTracker *savedGT = sdata->gGT;
+		struct Particle particles[2] = {0};
+		memset(&testGT, 0, sizeof(testGT));
+		memset(slots, 0, sizeof(slots));
+		pool.itemSize = sizeof(slots[0]);
+		testGT.JitPools.oscillator = pool;
+		testGT.JitPools.particle.ptrPoolData = particles;
+		testGT.JitPools.particle.itemSize = sizeof(particles[0]);
+		testGT.JitPools.particle.poolSize = sizeof(particles);
+		testGT.JitPools.particle.maxItems = 2;
+		testGT.numParticles = 2;
+		testGT.particleList_ordinary = particles;
+		particles[0].next = &particles[1];
+		particles[0].oscillator = slots;
+		particles[1].oscillator = &slots[1];
+		sdata->gGT = &testGT;
+		Particle_UpdateList(&testGT.particleList_ordinary, particles);
+		sdata->gGT = savedGT;
+		if (testGT.particleList_ordinary != NULL || testGT.numParticles != 0 ||
+		    testGT.JitPools.particle.free.count != 2 || testGT.JitPools.oscillator.free.count != 2)
+			return 1;
+	}
+	printf("[CTR Particle] pool self-test passed: valid-chain, misaligned, one-past, invalid-link, cycle, zero-stride\n");
+	return 0;
+}
 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8003f48c-0x8003f4c4.
 int Particle_BitwiseClampByte(int *value)

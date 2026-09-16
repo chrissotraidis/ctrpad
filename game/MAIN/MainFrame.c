@@ -133,6 +133,21 @@ void MainFrame_GameLogic(struct GameTracker *gGT, struct GamepadSystem *gGamepad
 	int iVar11;
 	struct Thread *psVar12;
 
+	// Record transitions and a bounded heartbeat, never every particle/frame.
+	static int previousLevel = -1;
+	static u32 previousMode;
+	static u32 diagnosticFrames;
+	if (previousLevel != gGT->levelID || previousMode != gGT->gameMode1 || ++diagnosticFrames >= 300)
+	{
+		Platform_Log("[CTR Game] frame=%u level=%d mode=0x%x players=%d particles=%d particle_free=%d oscillator_free=%d\n",
+		             (unsigned)sdata->frameCounter, gGT->levelID, (unsigned)gGT->gameMode1,
+		             gGT->numPlyrCurrGame, gGT->numParticles,
+		             gGT->JitPools.particle.free.count, gGT->JitPools.oscillator.free.count);
+		previousLevel = gGT->levelID;
+		previousMode = gGT->gameMode1;
+		diagnosticFrames = 0;
+	}
+
 	wasPausedAtFrameStart = true;
 	if ((gGT->gameMode1 & PAUSE_ALL) == 0)
 	{
