@@ -112,9 +112,13 @@ image before replacing a working import. A PlayStation BIOS is not required.
 
 ## Build from source
 
-Every target requires your own NTSC-U, single-track raw MODE2/2352 Crash Team
-Racing BIN. A cooked 2048-byte ISO is not a substitute because it omits the
-raw XA/STR sector data used for music, speech, and video.
+Compilation and retail-free self-tests do not require game data. To play,
+every target requires your own NTSC-U, single-track raw MODE2/2352 Crash Team
+Racing BIN; cooked 2048-byte ISOs omit required XA/STR sectors.
+
+See [source maintenance and exact dependency pins](docs/source-maintenance/README.md)
+for the retained upstream base, comparison/update procedure and source archives.
+See [diagnostics](docs/DIAGNOSTICS.md) for logs and crash-report instructions.
 
 ### Requirements
 

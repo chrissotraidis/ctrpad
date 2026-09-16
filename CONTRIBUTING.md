@@ -36,6 +36,10 @@ Run the strongest relevant checks for your change and report exactly what was
 and was not tested. A successful build is not physical-device, controller,
 touch, audio, performance, or multiplayer proof.
 
+For dependency changes, follow [source maintenance](docs/source-maintenance/README.md).
+Run `python3 tools/check-sources.py` and `python3 tools/test-native-log.py` for
+source/package or logger changes.
+
 ## Pull requests
 
 A useful pull request explains:

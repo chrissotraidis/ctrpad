@@ -53,7 +53,7 @@ while (($#)); do
     esac
 done
 
-for command_name in basename cut dirname git grep gzip head mkdir mktemp mv rm shasum tar tr wc; do
+for command_name in python3 basename cut dirname git grep gzip head mkdir mktemp mv rm shasum tar tr wc; do
     require_command "$command_name"
 done
 
@@ -155,6 +155,12 @@ generated_match="$(grep -E \
     "^${archive_root}/(build(/|$)|build-[^/]+/|dist/|assets/|debug/|memcards/|\.git/)" \
     "$archive_list" | head -1 || true)"
 [[ -z "$generated_match" ]] || fail "generated/runtime path found in source archive: $generated_match"
+
+mkdir "$tmp_dir/verify"
+tar -xf "$archive_tar" -C "$tmp_dir/verify"
+if [[ -f "$tmp_dir/verify/$archive_root/sources.lock.json" || -f "$tmp_dir/verify/$archive_root/tools/check-sources.py" ]]; then
+    python3 "$tmp_dir/verify/$archive_root/tools/check-sources.py"
+fi
 
 gzip -n -9 -c "$archive_tar" >"$archive_gzip"
 gzip -t "$archive_gzip"

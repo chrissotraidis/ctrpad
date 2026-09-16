@@ -40,6 +40,7 @@ require_command() {
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_root="$script_dir"
 cd "$repo_root"
+python3 "$repo_root/tools/check-sources.py"
 app_path="$repo_root/build-ios-device-arm64/CTRPad.app"
 output_path=""
 expected_bundle_id=""
