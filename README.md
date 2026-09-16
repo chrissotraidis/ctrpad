@@ -1,9 +1,4 @@
 # CTRPad
-
-<p align="center">
-  <img src="docs/design/ctrpad-app-icon-master.png" width="160" alt="CTRPad app icon">
-</p>
-
 <p align="center">
   <strong>Crash Team Racing, rebuilt as a native app for Apple Silicon Mac, iPhone, and iPad.</strong><br>
   Native ARM64 rendering, touch controls, controller support, Files-based setup,
