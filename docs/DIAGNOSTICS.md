@@ -12,7 +12,8 @@ soon after a problem, before repeated launches or long sessions replace them.
 
 The maintenance candidate adds:
 
-- Full source commit, dirty build label, platform and SDL version at startup;
+- Full source commit for Git builds, dirty build label, platform and SDL
+  version at startup (extracted archives use their known source identity);
   existing renderer, audio, controller, import and lifecycle messages remain.
 - Previous-session status: `clean`, `interrupted-or-legacy`, `unknown`, or
   `unavailable`. An interrupted session may be a force quit, OS termination,

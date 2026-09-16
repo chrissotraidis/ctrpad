@@ -126,7 +126,7 @@ See [diagnostics](docs/DIAGNOSTICS.md) for logs and crash-report instructions.
 - CMake 3.20 or newer;
 - Ninja for the Apple presets;
 - Xcode and its command-line tools for Apple builds; and
-- your own compatible NTSC-U retail disc image.
+- for gameplay, your own compatible NTSC-U retail disc image.
 
 On macOS, install the build tools with Homebrew:
 
