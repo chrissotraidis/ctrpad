@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Test structured devicectl success and false-positive rejection paths.
 
-set -euo pipefail
+set -Eeuo pipefail
+trap 'printf "SELF-TEST ERROR: line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 fail() {
     printf 'SELF-TEST ERROR: %s\n' "$*" >&2
@@ -85,7 +86,10 @@ expect_success() {
     local label="$1"
     shift
     local output="$test_tmp_dir/$label.manifest"
-    "$verify_tool" "$@" --output "$output" >"$test_tmp_dir/$label.stdout"
+    if ! "$verify_tool" "$@" --output "$output" >"$test_tmp_dir/$label.stdout" 2>"$test_tmp_dir/$label.stderr"; then
+        cat "$test_tmp_dir/$label.stdout" "$test_tmp_dir/$label.stderr" >&2
+        fail "$label verifier unexpectedly failed"
+    fi
     grep -Fxq 'VALIDATION_STATUS=verified' "$output" || \
         fail "$label did not write a verified manifest"
 }
