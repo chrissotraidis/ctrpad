@@ -40,6 +40,8 @@ Continue below for the exact signing and verification details.
 
 ## Requirements
 
+The packaging and structured device-evidence tools require Python 3.
+
 - an ARM64 Mac with the current Xcode command-line tools;
 - CMake 3.20 or newer and Ninja;
 - an iPhone or iPad running iOS/iPadOS 15 or newer;

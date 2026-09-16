@@ -10,7 +10,8 @@ upgrade, source-tree migration, device installation or binary publication.
 - Maintenance: `eaafce2ebd866bb1ca9e4fe7ca657f65e47d1db7`.
 - Diagnostics / tested clean candidate:
   `0c299e80e843c1add1648905a0f55d1adf31155e`.
-- Subsequent qualification documentation does not change executable source.
+- Subsequent qualification documentation and device-verifier/test portability
+  changes do not change executable source.
 - CTR Native base remains `2df55dc5ad7d28e2712fc3453cd5bda7b737206e`;
   SDL remains 3.4.10, tracked tree `4a9dba870b17c7216710860a8a5540efb7dfee90`;
   PSn00bSDK subset tree `b63d699547c9d7af0e09aa85e2683c2acc879b0f`.
@@ -90,6 +91,17 @@ git write-tree
 The diff is empty and the restored tree is
 `87cc673cd23581e5e8b250dfd4b2ac5a0f5e9c51`, exactly the starting source tree.
 This did not reset main, the working candidate or any device.
+
+## CI portability follow-up
+
+Enabling the full suite on GitHub's macOS 15 runner exposed an existing
+`plutil` JSON-input failure in the device-evidence verifier. It passed on the
+newer local macOS host. The verifier now uses Python's JSON parser for field
+lookup and retains all existing command, outcome, schema, bundle, version and
+process checks. Fixture edits also use a JSON parser instead of asking older
+`plutil` to modify JSON. The four positive and ten negative cases pass locally;
+CI verifies them on macOS 15. Test failures now report the failing command and
+verifier output rather than exiting silently.
 
 ## Remaining boundaries
 
