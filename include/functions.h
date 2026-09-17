@@ -673,6 +673,7 @@ void MainStats_ClearBattleVS(void);
 void MainStats_RestartRaceCountLoss(void);
 
 void Particle_UpdateAllParticles(void);
+int Particle_RunPoolSelfTest(void);
 void Particle_RenderList(struct PushBuffer *pb, void *particleList);
 
 void PickupBots_Init(void);
@@ -1456,5 +1457,3 @@ void VehPhysGeneral_JumpAndFriction(struct Thread *thread, struct Driver *driver
 void CS_LoadBoss(const struct BossCutsceneData *bcd);
 
 #endif
-
-int Particle_RunPoolSelfTest(void);
