@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="https://discord.gg/wzw2qjp5JF"><img alt="Join the Discord community" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white"></a>
   <a href="https://github.com/chrissotraidis/ctrpad/actions/workflows/apple-packages.yml"><img alt="Apple package builds" src="https://github.com/chrissotraidis/ctrpad/actions/workflows/apple-packages.yml/badge.svg"></a>
   <img alt="macOS 11 or newer" src="https://img.shields.io/badge/macOS-11%2B-0A84FF?logo=apple">
   <img alt="iOS and iPadOS 15 or newer" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-15%2B-0A84FF?logo=apple">
@@ -67,6 +68,10 @@ operating system, and the full controller hardware matrix remains open.
 
 ## Download and install
 
+[**Download v0.1.2**](https://github.com/chrissotraidis/ctrpad/releases/tag/v0.1.2) includes the new iOS Options menu, diagnostic-log export, empty blue kart app icon and updated iPad touch defaults. The native particle-pool allocation fix is included on both Apple platforms.
+
+On iPhone/iPad, use **Options → Export diagnostic logs → Save to Files** after a problem. See [diagnostics instructions](docs/DIAGNOSTICS.md).
+
 You need two separate things:
 
 1. **CTRPad**, downloaded from [GitHub Releases](https://github.com/chrissotraidis/ctrpad/releases).
@@ -112,9 +117,13 @@ image before replacing a working import. A PlayStation BIOS is not required.
 
 ## Build from source
 
-Every target requires your own NTSC-U, single-track raw MODE2/2352 Crash Team
-Racing BIN. A cooked 2048-byte ISO is not a substitute because it omits the
-raw XA/STR sector data used for music, speech, and video.
+Compilation and retail-free self-tests do not require game data. To play,
+every target requires your own NTSC-U, single-track raw MODE2/2352 Crash Team
+Racing BIN; cooked 2048-byte ISOs omit required XA/STR sectors.
+
+See [source maintenance and exact dependency pins](docs/source-maintenance/README.md)
+for the retained upstream base, comparison/update procedure and source archives.
+See [diagnostics](docs/DIAGNOSTICS.md) for logs and crash-report instructions.
 
 ### Requirements
 
@@ -122,7 +131,7 @@ raw XA/STR sector data used for music, speech, and video.
 - CMake 3.20 or newer;
 - Ninja for the Apple presets;
 - Xcode and its command-line tools for Apple builds; and
-- your own compatible NTSC-U retail disc image.
+- for gameplay, your own compatible NTSC-U retail disc image.
 
 On macOS, install the build tools with Homebrew:
 

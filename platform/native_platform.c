@@ -94,6 +94,7 @@ struct NativeLifecycleActions
 global_variable struct NativeLifecycleStatus s_lifecycleStatus = {NATIVE_LIFECYCLE_ACTIVE, 0, 0};
 global_variable int s_lifecycleEventWatchInstalled = 0;
 
+static int s_uiOverlayPaused;
 internal void Native_RebaseVBlankClock(void);
 
 internal void NativeFrameStats_Reset(void)
@@ -293,7 +294,7 @@ internal void NativeLifecycle_ApplyEvent(Uint32 eventType)
 	{
 		Platform_LogError("[CTR Lifecycle] failed to suspend audio: %s\n", SDL_GetError());
 	}
-	if (actions.resumeInput != 0)
+	if ((actions.resumeInput != 0) && !s_uiOverlayPaused)
 	{
 		Platform_InputResume();
 	}
@@ -302,7 +303,7 @@ internal void NativeLifecycle_ApplyEvent(Uint32 eventType)
 		Native_RebaseVBlankClock();
 		NativeFrameStats_Reset();
 	}
-	if ((actions.resumeOutput != 0) && !NativeAudio_ResumeOutput())
+	if ((actions.resumeOutput != 0) && !s_uiOverlayPaused && !NativeAudio_ResumeOutput())
 	{
 		Platform_LogError("[CTR Lifecycle] failed to resume audio: %s\n", SDL_GetError());
 	}
@@ -579,6 +580,7 @@ void Platform_Init(const char *title, int width, int height)
 	}
 
 	s_platformInitialized = 1;
+	s_uiOverlayPaused = 0;
 	if (!SDL_AddEventWatch(NativeLifecycle_EventWatch, NULL))
 	{
 		Platform_LogError("[CTR Native] Failed to install lifecycle event watch: %s\n", SDL_GetError());
@@ -617,6 +619,29 @@ int Platform_IsInitialized(void)
 int Platform_IsHostActive(void)
 {
 	return s_lifecycleStatus.phase == NATIVE_LIFECYCLE_ACTIVE;
+}
+
+void Platform_SetUIOverlayPaused(int paused)
+{
+    paused = paused != 0;
+    if (paused == s_uiOverlayPaused) return;
+    s_uiOverlayPaused = paused;
+    if (paused)
+    {
+        Platform_InputSuspend();
+        if (!NativeAudio_SuspendOutput()) Platform_LogWarn("[CTR Options] audio suspension failed\n");
+    }
+    else
+    {
+        Native_RebaseVBlankClock();
+        NativeFrameStats_Reset();
+        if (Platform_IsHostActive())
+        {
+            Platform_InputResume();
+            if (!NativeAudio_ResumeOutput()) Platform_LogWarn("[CTR Options] audio resume failed\n");
+        }
+    }
+    Platform_Log("[CTR Options] runtime_paused=%d\n", paused);
 }
 
 int Platform_ShouldQuit(void)

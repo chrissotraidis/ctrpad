@@ -6,7 +6,7 @@ if(IOS OR APPLE)
     enable_language(OBJC)
 endif()
 
-set(CTR_NATIVE_VERSION "0.1.1")
+set(CTR_NATIVE_VERSION "0.1.2")
 option(CTR_NATIVE_MACOS_BUNDLE "Build CTR Native as a macOS application bundle" OFF)
 set(CTR_NATIVE_SOURCE_COMMIT "" CACHE STRING
     "Source commit for a renamed corresponding-source tree without .git"
@@ -228,10 +228,13 @@ if(IOS)
         "${CMAKE_SOURCE_DIR}/platform/apple/Assets.xcassets/*"
     )
     set_source_files_properties(${CTR_NATIVE_IOS_ASSET_CATALOG_FILES} PROPERTIES HEADER_FILE_ONLY TRUE)
+    # Asset-only edits must rerun the post-link actool packaging step too.
+    set_property(TARGET ctr_native APPEND PROPERTY LINK_DEPENDS ${CTR_NATIVE_IOS_ASSET_CATALOG_FILES})
     target_sources(ctr_native PRIVATE
         platform/apple/native_ios_import.m
         platform/apple/native_ios_telemetry.m
         platform/apple/native_ios_touch.m
+        platform/apple/native_diagnostics.m
         ${CTR_NATIVE_IOS_ASSET_CATALOG_FILES}
     )
     target_compile_options(ctr_native PRIVATE "$<$<COMPILE_LANGUAGE:OBJC>:-fobjc-arc>")
@@ -287,7 +290,7 @@ if(CTR_NATIVE_MACOS_BUNDLE)
         MACOSX_BUNDLE_INFO_STRING "Touch-first native Crash Team Racing runtime"
         MACOSX_BUNDLE_LONG_VERSION_STRING "${CTR_NATIVE_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${CTR_NATIVE_VERSION}"
-        MACOSX_BUNDLE_BUNDLE_VERSION "2"
+        MACOSX_BUNDLE_BUNDLE_VERSION "4"
         MACOSX_BUNDLE_COPYRIGHT "GPL-3.0; retail game data is user-supplied"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/platform/apple/Info.plist.in"
     )
@@ -309,7 +312,7 @@ if(IOS)
         MACOSX_BUNDLE_INFO_STRING "Touch-first native Crash Team Racing runtime"
         MACOSX_BUNDLE_LONG_VERSION_STRING "${CTR_NATIVE_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${CTR_NATIVE_VERSION}"
-        MACOSX_BUNDLE_BUNDLE_VERSION "2"
+        MACOSX_BUNDLE_BUNDLE_VERSION "4"
         MACOSX_BUNDLE_COPYRIGHT "GPL-3.0; retail game data is user-supplied"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/platform/apple/Info-iOS.plist.in"
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${CTR_NATIVE_IOS_BUNDLE_IDENTIFIER}"
@@ -322,6 +325,7 @@ target_compile_definitions(ctr_native PRIVATE
     BUILD=926
     CTR_INTERNAL
     CTR_NATIVE_VERSION=\"${CTR_NATIVE_VERSION}\"
+    CTR_NATIVE_SOURCE_IDENTITY=\"${CTR_NATIVE_SOURCE_IDENTITY}\"
     CTR_NATIVE_BUILD_ID=\"${CTR_NATIVE_BUILD_ID}\"
 )
 if(CTR_NATIVE_RENDERER_GLES)
@@ -385,6 +389,7 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_test(NAME ctr_native_particle_pool COMMAND $<TARGET_FILE:ctr_native> --self-test-particle-pool)
     add_test(NAME ctr_native_version COMMAND $<TARGET_FILE:ctr_native> --version)
     set_tests_properties(ctr_native_version PROPERTIES PASS_REGULAR_EXPRESSION "^CTR Native ")
     add_test(NAME ctr_native_state_digest COMMAND $<TARGET_FILE:ctr_native> --self-test-state-digest)

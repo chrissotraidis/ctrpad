@@ -13,6 +13,7 @@ struct PlatformMempackArena
 void Platform_Init(const char *title, int width, int height);
 int Platform_IsInitialized(void);
 int Platform_IsHostActive(void);
+void Platform_SetUIOverlayPaused(int paused);
 int Platform_ShouldQuit(void);
 void Platform_Shutdown(void);
 void Platform_InitScratchpad(void);

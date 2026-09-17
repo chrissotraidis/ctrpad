@@ -673,6 +673,7 @@ void MainStats_ClearBattleVS(void);
 void MainStats_RestartRaceCountLoss(void);
 
 void Particle_UpdateAllParticles(void);
+int Particle_RunPoolSelfTest(void);
 void Particle_RenderList(struct PushBuffer *pb, void *particleList);
 
 void PickupBots_Init(void);

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Test structured devicectl success and false-positive rejection paths.
 
-set -euo pipefail
+set -Eeuo pipefail
+trap 'printf "SELF-TEST ERROR: line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 fail() {
     printf 'SELF-TEST ERROR: %s\n' "$*" >&2
@@ -37,6 +38,26 @@ create_base() {
 
 to_json() {
     plutil -convert json "$1"
+}
+
+edit_json() {
+    python3 - "$@" <<'PYEDIT'
+import json
+import sys
+path, action, key = sys.argv[1:4]
+with open(path) as stream:
+    data = json.load(stream)
+if action == 'set-info':
+    data['info'][key] = sys.argv[4]
+elif action == 'remove-info':
+    del data['info'][key]
+elif action == 'append-app':
+    data['result']['apps'].append({'bundleIdentifier': key})
+elif action == 'set-version':
+    data['result']['apps'][0]['version'] = key
+with open(path, 'w') as stream:
+    json.dump(data, stream)
+PYEDIT
 }
 
 create_installed_app() {
@@ -85,7 +106,10 @@ expect_success() {
     local label="$1"
     shift
     local output="$test_tmp_dir/$label.manifest"
-    "$verify_tool" "$@" --output "$output" >"$test_tmp_dir/$label.stdout"
+    if ! "$verify_tool" "$@" --output "$output" >"$test_tmp_dir/$label.stdout" 2>"$test_tmp_dir/$label.stderr"; then
+        cat "$test_tmp_dir/$label.stdout" "$test_tmp_dir/$label.stderr" >&2
+        fail "$label verifier unexpectedly failed"
+    fi
     grep -Fxq 'VALIDATION_STATUS=verified' "$output" || \
         fail "$label did not write a verified manifest"
 }
@@ -140,14 +164,14 @@ expect_failure empty-apps 'missing installed app bundle identifier' installed-ap
 
 wrong_command="$test_tmp_dir/wrong-command.json"
 cp "$installed_json" "$wrong_command"
-plutil -replace info.commandType -string devicectl.list.devices "$wrong_command"
+edit_json "$wrong_command" set-info commandType devicectl.list.devices
 expect_failure wrong-command 'command type devicectl.list.devices' installed-app \
     --json "$wrong_command" --bundle-id io.github.chrissotraidis.ctrpad \
     --version 0.1.0 --build 1
 
 missing_json_version="$test_tmp_dir/missing-json-version.json"
 cp "$envelope_json" "$missing_json_version"
-plutil -remove info.jsonVersion "$missing_json_version"
+edit_json "$missing_json_version" remove-info jsonVersion
 expect_failure missing-json-version 'missing JSON schema version' envelope \
     --json "$missing_json_version" --command-type devicectl.list.devices
 
@@ -159,14 +183,14 @@ expect_failure wrong-bundle 'installed app bundle ID' installed-app \
 
 second_app="$test_tmp_dir/second-app.json"
 cp "$installed_json" "$second_app"
-plutil -insert result.apps.1 -xml '<dict><key>bundleIdentifier</key><string>io.github.chrissotraidis.ctrpad</string></dict>' "$second_app"
+edit_json "$second_app" append-app io.github.chrissotraidis.ctrpad
 expect_failure second-app 'more than one exact bundle match' installed-app \
     --json "$second_app" --bundle-id io.github.chrissotraidis.ctrpad \
     --version 0.1.0 --build 1
 
 wrong_version="$test_tmp_dir/wrong-version.json"
 cp "$installed_json" "$wrong_version"
-plutil -replace result.apps.0.version -string 9.9.9 "$wrong_version"
+edit_json "$wrong_version" set-version 9.9.9
 expect_failure wrong-version 'installed app version 9.9.9' installed-app \
     --json "$wrong_version" --bundle-id io.github.chrissotraidis.ctrpad \
     --version 0.1.0 --build 1

@@ -1,7 +1,7 @@
 # Third-Party Notices
 
 This project vendors third-party software and contains modified third-party
-derivatives. Keep this file with source and binary distributions of CTR Native.
+derivatives. Keep this file with source and binary distributions of CTRPad.
 
 ## PsyCross / Psy-X
 
@@ -72,7 +72,11 @@ Path: `externals/SDL`
 SDL3 provides cross-platform host windowing, input, timing, and audio device
 support for CTR Native.
 
-Vendored version: 3.4.10 (`release-3.4.10`)
+Vendored version: 3.4.10 (`release-3.4.10`), upstream commit
+`8e37db5e797b6167f3a00d697d816a684bd259c7`. This is a modified vendored
+copy: inherited import differences and CTRPad UIKit lifecycle/run-loop changes
+are recorded in `docs/source-maintenance/README.md`; the exact selected tree
+is in `sources.lock.json`.
 
 Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 

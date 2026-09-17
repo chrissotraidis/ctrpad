@@ -1,13 +1,14 @@
 name: Apple release packages
 
 on:
+  pull_request:
   workflow_dispatch:
   push:
     tags:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   macos:
@@ -21,6 +22,12 @@ jobs:
         run: brew install cmake ninja
       - name: Build and package
         run: ./package-macos.sh --build
+      - name: Test runtime and logger
+        run: |
+          ctest --preset macos-arm64-app --output-on-failure
+          python3 tools/test-native-log.py
+          python3 tools/test-diagnostics.py
+          python3 tools/test-source-lock.py
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
@@ -71,6 +78,8 @@ jobs:
   release:
     name: Attach packages to tagged release
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     needs: [macos, ios, source]
     runs-on: ubuntu-latest
     steps:

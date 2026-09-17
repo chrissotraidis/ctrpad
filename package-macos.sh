@@ -53,6 +53,7 @@ done
 
 repo_root=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 cd "$repo_root"
+python3 "$repo_root/tools/check-sources.py"
 
 git diff --quiet && git diff --cached --quiet || fail "tracked checkout must be clean"
 source_commit=$(git rev-parse HEAD)

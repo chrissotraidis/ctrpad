@@ -333,7 +333,9 @@ static void SDLCALL NativeIOS_DisplayIteration(void *userdata)
 	{
 		return;
 	}
-	if (!Platform_IsHostActive())
+	int configuring = NativeIOSTouch_IsConfiguring();
+	Platform_SetUIOverlayPaused(configuring);
+	if (!Platform_IsHostActive() || configuring)
 	{
 		Platform_PollHostEvents();
 		return;
@@ -455,6 +457,7 @@ static int NativeApp_StartRuntime(const struct NativeLaunchOptions *options)
 	}
 	Platform_Log("[CTR Session] version=%s build=%s compiler=%s target=%s\n", CTR_NATIVE_VERSION, CTR_NATIVE_BUILD_ID, CC,
 	             CTR_NATIVE_TARGET_NAME);
+	Platform_Log("[CTR Session] source=%s sdl=%d platform=%s\n", CTR_NATIVE_SOURCE_IDENTITY, SDL_GetVersion(), SDL_GetPlatform());
 	Platform_Log("[CTR Session] base=%s\n", NativeAssets_GetBaseDir());
 	Platform_Log("[CTR Session] assets=%s\n", NativeAssets_GetAssetDir());
 	Platform_Log("[CTR Session] writable=%s\n", NativeStorage_GetWritableRoot());
@@ -687,6 +690,10 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 			rendererPixelSelfTest = 1;
+		}
+		if (strcmp(argv[argIndex], "--self-test-particle-pool") == 0)
+		{
+			return Particle_RunPoolSelfTest();
 		}
 		if (NativeArg_IsLifecycleSelfTest(argv[argIndex]))
 		{

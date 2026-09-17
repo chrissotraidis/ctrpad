@@ -30,11 +30,35 @@ require_command() {
     command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
 }
 
+# Older macOS plutil versions do not accept JSON input consistently. Parse
+# devicectl's actual JSON with Python; preserve the existing strict field checks.
+json_query() {
+    python3 - "$json_path" "$1" "${2:-raw}" <<'PYQUERY'
+import json
+import sys
+try:
+    with open(sys.argv[1]) as stream:
+        value = json.load(stream)
+    for key in sys.argv[2].split('.'):
+        value = value[int(key)] if isinstance(value, list) else value[key]
+    if sys.argv[3] == 'type':
+        names = {str: 'string', int: 'integer', float: 'real', bool: 'boolean',
+                 list: 'array', dict: 'dictionary', type(None): 'null'}
+        print(names[type(value)])
+    elif isinstance(value, (str, int, float)) and not isinstance(value, bool):
+        print(value)
+    else:
+        sys.exit(1)
+except (OSError, ValueError, KeyError, IndexError, TypeError):
+    sys.exit(1)
+PYQUERY
+}
+
 extract_required() {
     local key_path="$1"
     local label="$2"
     local value
-    if ! value="$(plutil -extract "$key_path" raw -o - "$json_path" 2>/dev/null)"; then
+    if ! value="$(json_query "$key_path" 2>/dev/null)"; then
         fail "devicectl JSON is missing $label at $key_path"
     fi
     [[ -n "$value" ]] || fail "devicectl JSON contains an empty $label"
@@ -86,7 +110,7 @@ while (($#)); do
     esac
 done
 
-for command_name in awk basename dirname git plutil shasum uname; do
+for command_name in awk basename dirname git python3 shasum uname; do
     require_command "$command_name"
 done
 [[ "$(uname -s)" == "Darwin" ]] || fail "devicectl JSON verification requires macOS"
@@ -110,8 +134,8 @@ case "$output_path" in
         ;;
 esac
 
-plutil -p "$json_path" >/dev/null
-if plutil -type error "$json_path" >/dev/null 2>&1; then
+python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$json_path"
+if json_query error type >/dev/null 2>&1; then
     fail "devicectl JSON contains an error object"
 fi
 
@@ -141,7 +165,7 @@ devicectl_version="$(extract_required info.version 'devicectl version')"
     fail "devicectl version is malformed: $devicectl_version"
 
 json_version="$(extract_required info.jsonVersion 'JSON schema version')"
-[[ "$(plutil -type info.jsonVersion "$json_path")" == "integer" ]] || \
+[[ "$(json_query info.jsonVersion type)" == "integer" ]] || \
     fail "devicectl jsonVersion is not an integer"
 [[ "$json_version" =~ ^[1-9][0-9]*$ ]] || \
     fail "devicectl jsonVersion is not positive: $json_version"
@@ -162,8 +186,7 @@ case "$mode" in
             result.installedApplications.0.bundleID 'installed bundle ID')"
         [[ "$installed_bundle_id" == "$bundle_id" ]] || \
             fail "install result bundle ID $installed_bundle_id does not equal $bundle_id"
-        if plutil -extract result.installedApplications.1.bundleID raw -o - \
-            "$json_path" >/dev/null 2>&1; then
+        if json_query result.installedApplications.1.bundleID >/dev/null 2>&1; then
             fail "install result contains more than one installed application"
         fi
         installation_url="$(extract_required \
@@ -188,8 +211,7 @@ case "$mode" in
             result.apps.0.bundleIdentifier 'installed app bundle identifier')"
         [[ "$installed_bundle_id" == "$bundle_id" ]] || \
             fail "installed app bundle ID $installed_bundle_id does not equal $bundle_id"
-        if plutil -extract result.apps.1.bundleIdentifier raw -o - \
-            "$json_path" >/dev/null 2>&1; then
+        if json_query result.apps.1.bundleIdentifier >/dev/null 2>&1; then
             fail "installed-app result contains more than one exact bundle match"
         fi
         installed_version="$(extract_required result.apps.0.version 'installed app version')"
@@ -214,7 +236,7 @@ case "$mode" in
         [[ "$executable_name" =~ ^[A-Za-z0-9._-]+$ ]] || \
             fail "--executable is required for launch mode"
         process_id="$(extract_required result.process.processIdentifier 'process identifier')"
-        [[ "$(plutil -type result.process.processIdentifier "$json_path")" == "integer" ]] || \
+        [[ "$(json_query result.process.processIdentifier type)" == "integer" ]] || \
             fail "launch process identifier is not an integer"
         [[ "$process_id" =~ ^[1-9][0-9]*$ ]] || \
             fail "launch process identifier is not positive: $process_id"

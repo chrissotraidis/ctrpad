@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "foundation": {
+    "repository": "https://github.com/CTR-tools/ctr-native",
+    "base": "2df55dc5ad7d28e2712fc3453cd5bda7b737206e",
+    "method": "Tracked source with retained upstream ancestry; app commit selects game/include/platform sources.",
+    "license": "GPL-3.0; see RIGHTS_AND_LICENSES.md and per-component notices"
+  },
+  "vendored": [
+    {
+      "path": "externals/SDL",
+      "repository": "https://github.com/libsdl-org/SDL",
+      "upstream_tag": "release-3.4.10",
+      "upstream_commit": "8e37db5e797b6167f3a00d697d816a684bd259c7",
+      "tree": "4a9dba870b17c7216710860a8a5540efb7dfee90",
+      "license": "Zlib",
+      "notice": "externals/SDL/LICENSE.txt",
+      "modifications": "Inherited ctr-native import plus CTRPad UIKit changes; see docs/source-maintenance/README.md"
+    },
+    {
+      "path": "include/psn00bsdk",
+      "repository": "https://github.com/Lameguy64/PSn00bSDK",
+      "inherited_from": "2df55dc5ad7d28e2712fc3453cd5bda7b737206e",
+      "tree": "b63d699547c9d7af0e09aa85e2683c2acc879b0f",
+      "license": "MPL-2.0",
+      "notice": "include/psn00bsdk/LICENSE.md",
+      "modifications": "Header subset inherited from CTR Native; no independent upstream revision claimed."
+    }
+  ]
+}

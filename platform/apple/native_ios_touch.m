@@ -1,5 +1,8 @@
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
+#import "native_diagnostics.h"
+#include "platform/native_log.h"
+#include <sys/utsname.h>
 
 #include <math.h>
 
@@ -179,12 +182,40 @@ static CGFloat CTRPadTouch_ScaleForChoice(CTRPadTouchSize choice)
 	return 1.0;
 }
 
+static NSInteger CTRPadTouch_DefaultSize(void)
+{
+    return UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ? CTRPadTouchSizeLarge : CTRPadTouchSizeStandard;
+}
+
+static CGFloat CTRPadTouch_DefaultOpacity(void)
+{
+    return UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ? 0.5347171426 : s_touchOpacityDefault;
+}
+
+// Owner-selected iPad layout, normalized to the usable safe area. Existing
+// saved profiles take precedence; phone and classic defaults are unchanged.
+static NSDictionary *CTRPadTouch_DefaultLayout(NSString *profile)
+{
+    if (![profile isEqualToString:@"tablet-left-simplified-v1"]) return nil;
+    return @{ @"centers": @{
+        @"ctrpad.touch.circle": @[ @(0.9494403535), @(0.7972489960) ],
+        @"ctrpad.touch.cross": @[ @(0.9271723122), @(0.8898995984) ],
+        @"ctrpad.touch.l1": @[ @(0.8053902798), @(0.7767269076) ],
+        @"ctrpad.touch.r1": @[ @(0.9265095729), @(0.7179919679) ],
+        @"ctrpad.touch.select": @[ @(0.9451693667), @(0.6575502008) ],
+        @"ctrpad.touch.square": @[ @(0.8630927835), @(0.8931526104) ],
+        @"ctrpad.touch.start": @[ @(0.9451693667), @(0.6071285141) ],
+        @"ctrpad.touch.stick": @[ @(0.1312518409), @(0.8658433735) ],
+        @"ctrpad.touch.triangle": @[ @(0.8895287187), @(0.8183333333) ],
+    }, @"scales": @{} };
+}
+
 static CGFloat CTRPadTouch_ReadOpacity(void)
 {
 	id value = [NSUserDefaults.standardUserDefaults objectForKey:s_touchOpacityKey];
 	if (![value isKindOfClass:NSNumber.class])
 	{
-		return s_touchOpacityDefault;
+		return CTRPadTouch_DefaultOpacity();
 	}
 
 	NSNumber *number = (NSNumber *)value;
@@ -203,7 +234,7 @@ static CGFloat CTRPadTouch_ReadOpacity(void)
 	case 1:
 		return 0.58;
 	}
-	return s_touchOpacityDefault;
+	return CTRPadTouch_DefaultOpacity();
 }
 
 static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
@@ -229,10 +260,14 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	UIColor *color = self.inputLatched
 	                     ? [UIColor colorWithRed:0.10 green:0.52 blue:0.98 alpha:1.0]
 	                     : (self.baseColor ?: [UIColor colorWithWhite:0.08 alpha:1.0]);
-	self.backgroundColor = [color colorWithAlphaComponent:self.inputLatched ? MAX(0.82, self.controlOpacity) : self.controlOpacity];
+	CGFloat red = 0, green = 0, blue = 0;
+    [color getRed:&red green:&green blue:&blue alpha:NULL];
+    UIColor *surface = self.inputLatched ? color : [UIColor colorWithRed:0.035 + red * 0.28
+        green:0.045 + green * 0.28 blue:0.075 + blue * 0.28 alpha:1];
+    self.backgroundColor = [surface colorWithAlphaComponent:self.inputLatched ? MAX(0.82, self.controlOpacity) : self.controlOpacity];
 	self.layer.borderColor = (self.inputLatched
 	                              ? [UIColor colorWithRed:0.72 green:0.88 blue:1.0 alpha:1.0]
-	                              : [UIColor colorWithWhite:1.0 alpha:MIN(1.0, 0.68 * relativeOpacity)])
+	                              : [color colorWithAlphaComponent:MIN(1.0, 0.95 * relativeOpacity)])
 	                             .CGColor;
 	[self setTitleColor:[UIColor colorWithWhite:1.0 alpha:self.inputLatched ? 1.0 : MIN(1.0, relativeOpacity)]
 	             forState:UIControlStateNormal];
@@ -241,7 +276,8 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	{
 		[self setTitle:title forState:UIControlStateNormal];
 	}
-	self.alpha = self.inputPressed ? 0.92 : 1.0;
+	self.alpha = 1.0;
+	self.layer.borderWidth = (self.inputPressed || self.inputLatched) ? 2.5 : 1.0;
 }
 
 - (void)layoutSubviews
@@ -771,6 +807,70 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 
 @implementation CTRPadTouchSettingsViewController
 
+- (UIView *)cardWithViews:(NSArray<UIView *> *)views
+{
+    UIStackView *card = [[UIStackView alloc] initWithArrangedSubviews:views];
+    card.axis = UILayoutConstraintAxisVertical;
+    card.spacing = 14;
+    card.layoutMarginsRelativeArrangement = YES;
+    card.directionalLayoutMargins = NSDirectionalEdgeInsetsMake(18, 18, 18, 18);
+    card.backgroundColor = [UIColor colorWithWhite:1 alpha:0.055];
+    card.layer.cornerRadius = 18;
+    card.layer.cornerCurve = kCACornerCurveContinuous;
+    return card;
+}
+
+- (void)exportDiagnostics:(UIButton *)sender
+{
+    sender.enabled = NO;
+    struct utsname hardware;
+    uname(&hardware);
+    NSDictionary *metadata = @{
+        @"Export time (UTC)": [[NSISO8601DateFormatter new] stringFromDate:NSDate.date],
+        @"App version": [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"unknown",
+        @"Build": [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"unknown",
+        @"Source commit": [NSBundle.mainBundle objectForInfoDictionaryKey:@"CTRNativeSourceCommit"] ?: @"unknown",
+        @"OS": UIDevice.currentDevice.systemVersion,
+        @"Hardware model": [NSString stringWithUTF8String:hardware.machine],
+        @"Thermal state (0 nominal, 3 critical)": @(NSProcessInfo.processInfo.thermalState),
+        @"Touch enabled": @(self.touchEnabledSwitch.on),
+        @"Classic controls": @(self.classicControlsSwitch.on),
+        @"Steer right": @(self.handednessControl.selectedSegmentIndex == 1),
+        @"Touch size (0 small, 2 large)": @(self.sizeControl.selectedSegmentIndex),
+        @"Touch opacity": @(self.opacitySlider.value),
+        @"Resolution scale": @(self.internalResolutionControl.selectedSegmentIndex + 1)
+    };
+    Platform_Log("[CTR Diagnostics] user requested export\n");
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSString *report = CTRPadDiagnosticsReport(metadata);
+        NSURL *directory = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:
+            [@"CTRPad-diagnostics-" stringByAppendingString:NSUUID.UUID.UUIDString]] isDirectory:YES];
+        NSError *error = nil;
+        BOOL created = report && [NSFileManager.defaultManager createDirectoryAtURL:directory withIntermediateDirectories:YES attributes:nil error:&error];
+        NSURL *file = [directory URLByAppendingPathComponent:@"CTRPad-diagnostics.txt"];
+        BOOL written = created && [report writeToURL:file atomically:YES encoding:NSUTF8StringEncoding error:&error];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            sender.enabled = YES;
+            if (!written)
+            {
+                [NSFileManager.defaultManager removeItemAtURL:directory error:nil];
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Could not export logs"
+                    message:@"There may not be enough free storage. Please try again." preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                [self presentViewController:alert animated:YES completion:nil];
+                return;
+            }
+            UIActivityViewController *share = [[UIActivityViewController alloc] initWithActivityItems:@[file] applicationActivities:nil];
+            share.popoverPresentationController.sourceView = sender;
+            share.popoverPresentationController.sourceRect = sender.bounds;
+            share.completionWithItemsHandler = ^(UIActivityType activity, BOOL completed, NSArray *items, NSError *shareError) {
+                [NSFileManager.defaultManager removeItemAtURL:directory error:nil];
+            };
+            [self presentViewController:share animated:YES completion:nil];
+        });
+    });
+}
+
 - (UILabel *)sectionLabelWithText:(NSString *)text
 {
 	UILabel *label = [[UILabel alloc] init];
@@ -794,7 +894,8 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 {
 	[super viewDidLoad];
 	self.view.backgroundColor = [UIColor colorWithRed:0.025 green:0.035 blue:0.075 alpha:1.0];
-	self.preferredContentSize = CGSizeMake(520.0, 560.0);
+	self.preferredContentSize = CGSizeMake(560.0, 680.0);
+	self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
 
 	UILabel *titleLabel = [[UILabel alloc] init];
 	titleLabel.text = @"Options";
@@ -803,7 +904,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	titleLabel.textAlignment = NSTextAlignmentCenter;
 
 	UILabel *bodyLabel = [[UILabel alloc] init];
-	bodyLabel.text = @"Adjust display and touch controls, or choose a different disc.";
+	bodyLabel.text = @"Changes save automatically. The game pauses while you adjust options.";
 	bodyLabel.textColor = [UIColor colorWithWhite:0.72 alpha:1.0];
 	bodyLabel.font = [UIFont systemFontOfSize:15.0 weight:UIFontWeightRegular];
 	bodyLabel.textAlignment = NSTextAlignmentCenter;
@@ -846,7 +947,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	[self styleSegmentedControl:self.handednessControl];
 
 	self.sizeControl = [[UISegmentedControl alloc] initWithItems:@[ @"Small", @"Standard", @"Large" ]];
-	self.sizeControl.selectedSegmentIndex = CTRPadTouch_ReadPreference(s_touchSizeKey, CTRPadTouchSizeStandard, CTRPadTouchSizeLarge);
+	self.sizeControl.selectedSegmentIndex = CTRPadTouch_ReadPreference(s_touchSizeKey, CTRPadTouch_DefaultSize(), CTRPadTouchSizeLarge);
 	self.sizeControl.accessibilityIdentifier = @"ctrpad.touch.settings.size";
 	[self.sizeControl addTarget:self action:@selector(preferencesChanged) forControlEvents:UIControlEventValueChanged];
 	[self styleSegmentedControl:self.sizeControl];
@@ -916,53 +1017,73 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	doneButton.accessibilityIdentifier = @"ctrpad.touch.settings.done";
 	[doneButton addTarget:self action:@selector(done) forControlEvents:UIControlEventTouchUpInside];
 
+    UIButtonConfiguration *exportConfiguration = [UIButtonConfiguration filledButtonConfiguration];
+    exportConfiguration.title = @"Export diagnostic logs";
+    exportConfiguration.image = [UIImage systemImageNamed:@"square.and.arrow.up"];
+    exportConfiguration.imagePadding = 10;
+    exportConfiguration.baseBackgroundColor = [UIColor colorWithRed:0.12 green:0.38 blue:0.80 alpha:1];
+    UIButton *exportButton = [UIButton buttonWithConfiguration:exportConfiguration primaryAction:nil];
+    exportButton.accessibilityIdentifier = @"ctrpad.options.export-logs";
+    [exportButton.heightAnchor constraintGreaterThanOrEqualToConstant:50].active = YES;
+    [exportButton addTarget:self action:@selector(exportDiagnostics:) forControlEvents:UIControlEventTouchUpInside];
+    UILabel *diagnosticsHelp = [self sectionLabelWithText:@"After a crash, reopen CTRPad and export here. Includes recent logs and build details; excludes saves and game data. Review the text before sharing. Nothing is uploaded automatically."];
+    diagnosticsHelp.numberOfLines = 0;
+    diagnosticsHelp.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
+    UILabel *buildLabel = [self sectionLabelWithText:[NSString stringWithFormat:@"CTRPad %@ · Build %@",
+        [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"?",
+        [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"?"]];
+    buildLabel.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
+
 	UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[
-		titleLabel,
-		bodyLabel,
-		changeDiscButton,
-		[self sectionLabelWithText:@"Touch controls"],
-		touchEnabledRow,
-		classicControlsRow,
-		classicControlsHelp,
-		self.editLayoutButton,
-		[self sectionLabelWithText:@"Internal resolution"],
-		self.internalResolutionControl,
-		resolutionHelp,
-		[self sectionLabelWithText:@"Handedness"],
-		self.handednessControl,
-		[self sectionLabelWithText:@"Control size"],
-		self.sizeControl,
-		opacityTitleRow,
-		self.opacitySlider,
-		resetButton,
-		doneButton,
+
+        [self cardWithViews:@[ [self sectionLabelWithText:@"TOUCH CONTROLS"], touchEnabledRow, classicControlsRow,
+            classicControlsHelp, self.editLayoutButton, [self sectionLabelWithText:@"Handedness"], self.handednessControl,
+            [self sectionLabelWithText:@"Control size"], self.sizeControl, opacityTitleRow, self.opacitySlider ]],
+        [self cardWithViews:@[ [self sectionLabelWithText:@"DIAGNOSTICS"], exportButton, diagnosticsHelp, buildLabel ]],
+        [self cardWithViews:@[ [self sectionLabelWithText:@"DISPLAY"], self.internalResolutionControl, resolutionHelp ]],
+        changeDiscButton,
+        resetButton,
 	]];
 	stack.translatesAutoresizingMaskIntoConstraints = NO;
 	stack.axis = UILayoutConstraintAxisVertical;
 	stack.alignment = UIStackViewAlignmentFill;
 	stack.spacing = 12.0;
-	[stack setCustomSpacing:16.0 afterView:bodyLabel];
+
 	[stack setCustomSpacing:22.0 afterView:changeDiscButton];
-	[stack setCustomSpacing:22.0 afterView:self.opacitySlider];
-	[stack setCustomSpacing:22.0 afterView:resolutionHelp];
+
+
 	UIScrollView *scrollView = [[UIScrollView alloc] init];
 	scrollView.translatesAutoresizingMaskIntoConstraints = NO;
 	scrollView.alwaysBounceVertical = NO;
 	[self.view addSubview:scrollView];
 	[scrollView addSubview:stack];
 
+    UIStackView *heading = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, doneButton]];
+    heading.axis = UILayoutConstraintAxisHorizontal;
+    heading.alignment = UIStackViewAlignmentCenter;
+    heading.spacing = 16;
+    titleLabel.textAlignment = NSTextAlignmentLeft;
+    [doneButton.widthAnchor constraintEqualToConstant:88].active = YES;
+    UIStackView *header = [[UIStackView alloc] initWithArrangedSubviews:@[heading, bodyLabel]];
+    header.axis = UILayoutConstraintAxisVertical;
+    header.spacing = 8;
+    header.translatesAutoresizingMaskIntoConstraints = NO;
+    bodyLabel.textAlignment = NSTextAlignmentLeft;
+    [self.view addSubview:header];
 	UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
 	[NSLayoutConstraint activateConstraints:@[
+        [header.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor constant:24],
+        [header.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor constant:-24],
+        [header.topAnchor constraintEqualToAnchor:safe.topAnchor constant:16],
 		[scrollView.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor],
 		[scrollView.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor],
-		[scrollView.topAnchor constraintEqualToAnchor:safe.topAnchor],
+		[scrollView.topAnchor constraintEqualToAnchor:header.bottomAnchor constant:12],
 		[scrollView.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor],
-		[stack.leadingAnchor constraintGreaterThanOrEqualToAnchor:scrollView.frameLayoutGuide.leadingAnchor constant:24.0],
-		[stack.trailingAnchor constraintLessThanOrEqualToAnchor:scrollView.frameLayoutGuide.trailingAnchor constant:-24.0],
+		[stack.leadingAnchor constraintEqualToAnchor:scrollView.contentLayoutGuide.leadingAnchor constant:24.0],
+		[stack.trailingAnchor constraintEqualToAnchor:scrollView.contentLayoutGuide.trailingAnchor constant:-24.0],
 		[stack.topAnchor constraintEqualToAnchor:scrollView.contentLayoutGuide.topAnchor constant:24.0],
 		[stack.bottomAnchor constraintEqualToAnchor:scrollView.contentLayoutGuide.bottomAnchor constant:-24.0],
-		[stack.centerXAnchor constraintEqualToAnchor:scrollView.frameLayoutGuide.centerXAnchor],
-		[stack.widthAnchor constraintLessThanOrEqualToConstant:460.0],
+		[scrollView.contentLayoutGuide.widthAnchor constraintEqualToAnchor:scrollView.frameLayoutGuide.widthAnchor],
 		[self.handednessControl.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[self.sizeControl.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
 		[self.opacitySlider.heightAnchor constraintGreaterThanOrEqualToConstant:44.0],
@@ -1013,8 +1134,8 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	[defaults removeObjectForKey:s_simplifiedRacingControlsKey];
 	[defaults removeObjectForKey:s_internalResolutionScaleKey];
 	self.handednessControl.selectedSegmentIndex = CTRPadTouchHandednessSteerLeft;
-	self.sizeControl.selectedSegmentIndex = CTRPadTouchSizeStandard;
-	self.opacitySlider.value = (float)s_touchOpacityDefault;
+	self.sizeControl.selectedSegmentIndex = CTRPadTouch_DefaultSize();
+	self.opacitySlider.value = (float)CTRPadTouch_DefaultOpacity();
 	[self updateOpacityValueLabel];
 	self.touchEnabledSwitch.on = YES;
 	self.classicControlsSwitch.on = NO;
@@ -1082,7 +1203,12 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	button.baseColor = color;
 	button.controlOpacity = self.controlOpacity;
 	button.releasedTitle = title;
-	button.layer.borderWidth = 2.0;
+	button.layer.borderWidth = 1.0;
+	button.layer.cornerCurve = kCACornerCurveContinuous;
+	button.layer.shadowColor = UIColor.blackColor.CGColor;
+	button.layer.shadowOpacity = 0.25;
+	button.layer.shadowRadius = 4;
+	button.layer.shadowOffset = CGSizeMake(0, 2);
 	button.titleLabel.font = [UIFont systemFontOfSize:14.0 weight:UIFontWeightBold];
 	button.titleLabel.numberOfLines = 2;
 	button.titleLabel.textAlignment = NSTextAlignmentCenter;
@@ -1110,7 +1236,12 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	button.exclusiveTouch = YES;
 	button.backgroundColor = [[UIColor colorWithWhite:0.08 alpha:1.0] colorWithAlphaComponent:self.controlOpacity];
 	button.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:MIN(1.0, 0.68 * relativeOpacity)].CGColor;
-	button.layer.borderWidth = 2.0;
+	button.layer.borderWidth = 1.0;
+	button.layer.cornerCurve = kCACornerCurveContinuous;
+	button.layer.shadowColor = UIColor.blackColor.CGColor;
+	button.layer.shadowOpacity = 0.25;
+	button.layer.shadowRadius = 4;
+	button.layer.shadowOffset = CGSizeMake(0, 2);
 	button.layer.cornerRadius = 12.0;
 	button.titleLabel.font = [UIFont systemFontOfSize:12.0 weight:UIFontWeightBold];
 	[button setTitle:title forState:UIControlStateNormal];
@@ -1327,7 +1458,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	                                                                  CTRPadTouchHandednessSteerLeft,
 	                                                                  CTRPadTouchHandednessSteerRight);
 	CTRPadTouchSize sizeChoice = (CTRPadTouchSize)CTRPadTouch_ReadPreference(s_touchSizeKey,
-	                                                                       CTRPadTouchSizeStandard,
+	                                                                       CTRPadTouch_DefaultSize(),
 	                                                                       CTRPadTouchSizeLarge);
 	self.controlScale = CTRPadTouch_ScaleForChoice(sizeChoice);
 	self.controlOpacity = CTRPadTouch_ReadOpacity();
@@ -1480,6 +1611,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	[self.layoutCenters removeAllObjects];
 	[self.layoutScales removeAllObjects];
 	NSDictionary *stored = [NSUserDefaults.standardUserDefaults dictionaryForKey:[self layoutStorageKey]];
+	if (stored == nil) stored = CTRPadTouch_DefaultLayout(profile);
 	NSDictionary *centers = [stored isKindOfClass:NSDictionary.class] ? stored[@"centers"] : nil;
 	if ([centers isKindOfClass:NSDictionary.class])
 	{
@@ -1898,6 +2030,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	[self.layoutScales removeAllObjects];
 	self.selectedControl = nil;
 	[NSUserDefaults.standardUserDefaults removeObjectForKey:[self layoutStorageKey]];
+	self.layoutProfile = nil;
 	[self updateEditorSelectionLabel];
 	[self.view setNeedsLayout];
 	UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, @"This touch layout was reset.");
@@ -1992,4 +2125,10 @@ void NativeIOSTouch_End(void)
 	[s_touchOverlayController.view removeFromSuperview];
 	[s_touchOverlayController removeFromParentViewController];
 	s_touchOverlayController = nil;
+}
+
+int NativeIOSTouch_IsConfiguring(void)
+{
+    return s_touchOverlayController != nil &&
+        (s_touchOverlayController.presentedViewController != nil || s_touchOverlayController.layoutEditing);
 }
