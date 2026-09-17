@@ -333,7 +333,9 @@ static void SDLCALL NativeIOS_DisplayIteration(void *userdata)
 	{
 		return;
 	}
-	if (!Platform_IsHostActive())
+	int configuring = NativeIOSTouch_IsConfiguring();
+	Platform_SetUIOverlayPaused(configuring);
+	if (!Platform_IsHostActive() || configuring)
 	{
 		Platform_PollHostEvents();
 		return;

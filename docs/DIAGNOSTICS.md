@@ -63,3 +63,5 @@ The options menu groups diagnostics, touch controls and display settings. Touch 
 Host export checks: `python3 tools/test-diagnostics.py` (macOS/Foundation). Logger checks: `python3 tools/test-native-log.py`.
 
 During build-3 qualification, the new checks exposed an undersized native oscillator pool. The allocator now uses the host structure size; see [candidate validation](source-maintenance/2026-09-17-ios-test.md). This fix still needs confirmation against the original reporter’s crash.
+
+Build 4 moves diagnostics below touch controls. Done stays at the top while the settings scroll. The game and audio pause while Options or the layout editor is open, then resume on exit. The new iPad default uses the owner's simplified left-steering layout, Large size and approximately 53% opacity; existing custom layouts take precedence.
