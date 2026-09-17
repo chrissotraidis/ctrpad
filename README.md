@@ -68,7 +68,7 @@ operating system, and the full controller hardware matrix remains open.
 
 ## Download and install
 
-[**Download v0.1.2**](https://github.com/chrissotraidis/ctrpad/releases/tag/v0.1.2) includes the new iOS Options menu, diagnostic-log export, approved empty-kart icon and updated iPad touch defaults. The native particle-pool allocation fix is included on both Apple platforms.
+[**Download v0.1.2**](https://github.com/chrissotraidis/ctrpad/releases/tag/v0.1.2) includes the new iOS Options menu, diagnostic-log export, empty blue kart app icon and updated iPad touch defaults. The native particle-pool allocation fix is included on both Apple platforms.
 
 On iPhone/iPad, use **Options → Export diagnostic logs → Save to Files** after a problem. See [diagnostics instructions](docs/DIAGNOSTICS.md).
 

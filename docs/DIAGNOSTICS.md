@@ -58,7 +58,7 @@ The report includes app version/build/full source commit, OS and hardware model,
 
 This export is not an Apple crash report. For a native stack trace, also retain the matching CTRPad `.ips` report from Settings → Privacy & Security → Analytics & Improvements → Analytics Data when available. A missing clean-shutdown marker indicates interruption, not necessarily a crash.
 
-The options menu groups diagnostics, touch controls and display settings. Touch polish changes strokes, corners, shadows and pressed-state emphasis; bindings, hit areas, layouts, gas latch and drift behavior remain unchanged. iOS uses a generic empty blue kart icon with no characters. Build 3 is a private test candidate, not a new public release.
+The options menu groups diagnostics, touch controls and display settings. Touch polish changes strokes, corners, shadows and pressed-state emphasis; bindings, hit areas, layouts, gas latch and drift behavior remain unchanged. iOS uses a generic empty blue kart icon with no characters. Build 3 was a private test candidate. Public v0.1.2 includes these features plus the build-4 Options and default-layout improvements.
 
 Host export checks: `python3 tools/test-diagnostics.py` (macOS/Foundation). Logger checks: `python3 tools/test-native-log.py`.
 
