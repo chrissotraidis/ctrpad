@@ -5,12 +5,12 @@ newest). macOS stores them under
 `~/Library/Application Support/chrissotraidis/CTRPad/`; iPhone/iPad keeps
 them in the app's private Application Support directory. Developer collection
 is documented in [Install iOS](INSTALL-IOS.md#run-the-physical-device-acceptance-campaign).
-Files exposes the imported disc, not these private logs; there is no in-app
-log export yet. Each new segment is limited to approximately
+On iPhone/iPad, use **Options → Export diagnostic logs → Save to Files** to
+export a reviewed report. Each raw log segment is limited to approximately
 8 MiB (plus the final log line); rotation also occurs at launch. Copy the files
 soon after a problem, before repeated launches or long sessions replace them.
 
-The maintenance candidate adds:
+v0.1.2 includes:
 
 - Full source commit for Git builds, dirty build label, platform and SDL
   version at startup (extracted archives use their known source identity);
@@ -25,10 +25,9 @@ The maintenance candidate adds:
   then aborts rather than writing through corrupt pointers. It does not catch
   every memory error, repair corruption or silently discard particles.
 
-These changes are not in public v0.1.1. Existing logs include local file paths;
-review and redact personal paths and identifiers before sharing. No automatic
-upload or new reporting UI is included. KartPad's richer report-export UI and
-redaction are not claimed here.
+Raw logs can include local file paths; review and redact personal paths and
+identifiers before sharing. The iOS report exporter filters path and identifying-
+pattern lines, but its text should still be reviewed. Nothing uploads automatically.
 
 For a report, include version/source, platform/OS, track/mode/player count,
 what happened immediately before failure, and reviewed log excerpts from the
@@ -46,13 +45,13 @@ The report matches the public v0.1.1 macOS executable UUID
 instruction is `str xzr, [x8, #8]`, in inlined oscillator destruction/free-list
 insertion. The oscillator link is invalid. This establishes the fault boundary,
 not which earlier operation corrupted it. The new checks distinguish update,
-destruction and free-head failures before an unsafe access. Reproduction with
-the diagnostic candidate, ideally compared with v0.1.1 under the same steps,
-is still required; this change does not claim the track crash is fixed.
+destruction and free-head failures before an unsafe access. v0.1.2 also corrects the oscillator allocation from the original 24-byte stride
+to the host structure size (32 bytes on 64-bit builds). Confirmation against the
+reporter's original reproduction is still needed; the issue remains open.
 
-## iOS test build: exporting diagnostics
+## iOS: exporting diagnostics
 
-In build 3, open **Options → Export diagnostic logs → Save to Files**. After an unexpected exit, reopen the app and export before repeatedly relaunching: retention is limited to the current log and four older segments. Review the text, then attach it to the CTRPad issue with the action/track that triggered the problem. Nothing is uploaded automatically.
+In v0.1.2, open **Options → Export diagnostic logs → Save to Files**. After an unexpected exit, reopen the app and export before repeatedly relaunching: retention is limited to the current log and four older segments. Review the text, then attach it to the CTRPad issue with the action/track that triggered the problem. Nothing is uploaded automatically.
 
 The report includes app version/build/full source commit, OS and hardware model, thermal state, control/display settings, and up to 128 KiB from each of five log segments. Large segments keep their header and tail; the omitted middle is labelled. Snapshot reads hold the logger lock, preventing rotation from invalidating the read. Path, email, UUID and credential-pattern lines are omitted. Saves, disc images, preferences files, signing material and device names/identifiers are never collected. Review remains important because logs are free-form text.
 
