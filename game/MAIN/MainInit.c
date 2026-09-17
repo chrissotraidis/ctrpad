@@ -475,7 +475,8 @@ void MainInit_JitPoolsNew(struct GameTracker *gGT)
 
 	int numParticle = poolScale >> 5;
 	JitPool_Init(&gGT->JitPools.particle, numParticle, sizeof(struct Particle), rdata.s_ParticlePool);
-	JitPool_Init(&gGT->JitPools.oscillator, numParticle, 0x18, rdata.s_OscillatorPool);
+	// Host pointers widen the oscillator from 24 to 32 bytes on 64-bit builds.
+	JitPool_Init(&gGT->JitPools.oscillator, numParticle, sizeof(struct ParticleOscillator), rdata.s_OscillatorPool);
 	JitPool_Init(&gGT->JitPools.rain, poolScale >> 9, sizeof(struct RainLocal), rdata.s_RainPool);
 
 #ifndef CTR_NATIVE

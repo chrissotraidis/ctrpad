@@ -259,9 +259,10 @@ static int Particle_OscillatorChainValid(const struct JitPool *pool, const struc
 static void Particle_PoolFault(const char *reason)
 {
 	struct GameTracker *gt = sdata->gGT;
-	Platform_LogError("[CTR Particle] invalid_pool reason=%s frame=%u level=%d mode=0x%x particles=%d particle_free=%d oscillator_free=%d; stopping before unsafe access\n",
+	Platform_LogError("[CTR Particle] invalid_pool reason=%s frame=%u level=%d mode=0x%x particles=%d particle_free=%d oscillator_free=%d oscillator_stride=%u required_stride=%zu; stopping before unsafe access\n",
 	                  reason, (unsigned)sdata->frameCounter, gt->levelID, (unsigned)gt->gameMode1,
-	                  gt->numParticles, gt->JitPools.particle.free.count, gt->JitPools.oscillator.free.count);
+	                  gt->numParticles, gt->JitPools.particle.free.count, gt->JitPools.oscillator.free.count,
+	                  gt->JitPools.oscillator.itemSize, sizeof(struct ParticleOscillator));
 	Platform_LogFlush();
 	abort();
 }
@@ -606,6 +607,8 @@ int Particle_RunPoolSelfTest(void)
 	if (Particle_OscillatorChainValid(&pool, slots)) return 1;
 	slots[1].next = slots;
 	if (Particle_OscillatorChainValid(&pool, slots)) return 1;
+	pool.itemSize = sizeof(slots[0]) - 1;
+	if (Particle_PoolContains(&pool, slots, sizeof(slots[0]))) return 1;
 	pool.itemSize = 0;
 	if (Particle_PoolContains(&pool, slots, sizeof(slots[0]))) return 1;
 	// Exercise the production destruction path with two live particles and
