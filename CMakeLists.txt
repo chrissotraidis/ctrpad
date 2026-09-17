@@ -228,10 +228,13 @@ if(IOS)
         "${CMAKE_SOURCE_DIR}/platform/apple/Assets.xcassets/*"
     )
     set_source_files_properties(${CTR_NATIVE_IOS_ASSET_CATALOG_FILES} PROPERTIES HEADER_FILE_ONLY TRUE)
+    # Asset-only edits must rerun the post-link actool packaging step too.
+    set_property(TARGET ctr_native APPEND PROPERTY LINK_DEPENDS ${CTR_NATIVE_IOS_ASSET_CATALOG_FILES})
     target_sources(ctr_native PRIVATE
         platform/apple/native_ios_import.m
         platform/apple/native_ios_telemetry.m
         platform/apple/native_ios_touch.m
+        platform/apple/native_diagnostics.m
         ${CTR_NATIVE_IOS_ASSET_CATALOG_FILES}
     )
     target_compile_options(ctr_native PRIVATE "$<$<COMPILE_LANGUAGE:OBJC>:-fobjc-arc>")
@@ -309,7 +312,7 @@ if(IOS)
         MACOSX_BUNDLE_INFO_STRING "Touch-first native Crash Team Racing runtime"
         MACOSX_BUNDLE_LONG_VERSION_STRING "${CTR_NATIVE_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${CTR_NATIVE_VERSION}"
-        MACOSX_BUNDLE_BUNDLE_VERSION "2"
+        MACOSX_BUNDLE_BUNDLE_VERSION "3"
         MACOSX_BUNDLE_COPYRIGHT "GPL-3.0; retail game data is user-supplied"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/platform/apple/Info-iOS.plist.in"
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${CTR_NATIVE_IOS_BUNDLE_IDENTIFIER}"

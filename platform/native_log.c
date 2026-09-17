@@ -324,3 +324,38 @@ void Platform_LogError(const char *fmt, ...)
 	Platform_LogV(stderr, "ERROR", fmt, args);
 	va_end(args);
 }
+
+size_t Platform_LogCopySegment(int segment, char *buffer, size_t capacity)
+{
+    char path[512];
+    const char marker[] = "\n[... middle omitted; bounded diagnostic export ...]\n";
+    size_t count = 0;
+    if (!buffer || capacity < 8192 || segment < 0 || segment > NATIVE_LOG_ARCHIVE_COUNT) return 0;
+    Platform_LogLock();
+    if (s_logStream) fflush(s_logStream);
+    if (segment == 0) snprintf(path, sizeof(path), "%s", s_logPath);
+    else if (!Platform_LogBuildArchivePath(segment, path, sizeof(path))) goto done;
+    FILE *file = fopen(path, "rb");
+    if (!file) goto done;
+    if (fseek(file, 0, SEEK_END) == 0)
+    {
+        long length = ftell(file);
+        if (length >= 0 && fseek(file, 0, SEEK_SET) == 0)
+        {
+            if ((unsigned long)length <= capacity) count = fread(buffer, 1, capacity, file);
+            else
+            {
+                count = fread(buffer, 1, 4096, file);
+                memcpy(buffer + count, marker, sizeof(marker) - 1);
+                count += sizeof(marker) - 1;
+                size_t remaining = capacity - count;
+                if (fseek(file, -(long)remaining, SEEK_END) == 0)
+                    count += fread(buffer + count, 1, remaining, file);
+            }
+        }
+    }
+    fclose(file);
+done:
+    Platform_LogUnlock();
+    return count;
+}

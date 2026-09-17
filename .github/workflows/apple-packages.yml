@@ -26,6 +26,7 @@ jobs:
         run: |
           ctest --preset macos-arm64-app --output-on-failure
           python3 tools/test-native-log.py
+          python3 tools/test-diagnostics.py
           python3 tools/test-source-lock.py
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
