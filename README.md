@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="https://discord.gg/wzw2qjp5JF"><img alt="Join the Discord community" src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white"></a>
   <a href="https://github.com/chrissotraidis/ctrpad/actions/workflows/apple-packages.yml"><img alt="Apple package builds" src="https://github.com/chrissotraidis/ctrpad/actions/workflows/apple-packages.yml/badge.svg"></a>
   <img alt="macOS 11 or newer" src="https://img.shields.io/badge/macOS-11%2B-0A84FF?logo=apple">
   <img alt="iOS and iPadOS 15 or newer" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-15%2B-0A84FF?logo=apple">
@@ -66,6 +67,10 @@ Physical controller compatibility still depends on the controller model and
 operating system, and the full controller hardware matrix remains open.
 
 ## Download and install
+
+[**Download v0.1.2**](https://github.com/chrissotraidis/ctrpad/releases/tag/v0.1.2) includes the new iOS Options menu, diagnostic-log export, approved empty-kart icon and updated iPad touch defaults. The native particle-pool allocation fix is included on both Apple platforms.
+
+On iPhone/iPad, use **Options → Export diagnostic logs → Save to Files** after a problem. See [diagnostics instructions](docs/DIAGNOSTICS.md).
 
 You need two separate things:
 

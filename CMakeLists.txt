@@ -6,7 +6,7 @@ if(IOS OR APPLE)
     enable_language(OBJC)
 endif()
 
-set(CTR_NATIVE_VERSION "0.1.1")
+set(CTR_NATIVE_VERSION "0.1.2")
 option(CTR_NATIVE_MACOS_BUNDLE "Build CTR Native as a macOS application bundle" OFF)
 set(CTR_NATIVE_SOURCE_COMMIT "" CACHE STRING
     "Source commit for a renamed corresponding-source tree without .git"
@@ -290,7 +290,7 @@ if(CTR_NATIVE_MACOS_BUNDLE)
         MACOSX_BUNDLE_INFO_STRING "Touch-first native Crash Team Racing runtime"
         MACOSX_BUNDLE_LONG_VERSION_STRING "${CTR_NATIVE_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${CTR_NATIVE_VERSION}"
-        MACOSX_BUNDLE_BUNDLE_VERSION "2"
+        MACOSX_BUNDLE_BUNDLE_VERSION "4"
         MACOSX_BUNDLE_COPYRIGHT "GPL-3.0; retail game data is user-supplied"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/platform/apple/Info.plist.in"
     )
