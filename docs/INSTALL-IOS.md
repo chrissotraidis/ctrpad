@@ -1,5 +1,9 @@
 # Build, Sign, and Sideload CTRPad on iPhone or iPad
 
+> [!IMPORTANT]
+> **Downloads retired.** Prebuilt builds are no longer published, and release
+> links on this page no longer work. A build-it-yourself version is in progress.
+
 CTRPad is GPL-3.0 software. It does not include Crash Team Racing, a disc
 image, extracted retail data, saves, an Apple certificate, a private key, or a
 provisioning profile. Obtain the source corresponding to this build from
@@ -10,7 +14,7 @@ This document is Installation Information for the sideloaded build. It is not
 legal advice and does not grant rights to retail game data or Sony/Naughty Dog
 marks. Use only your own compatible NTSC-U retail disc image.
 
-Tagged [GitHub Releases](https://github.com/chrissotraidis/ctrpad/releases)
+Tagged GitHub Releases (retired)
 provide a retail-free unsigned IPA and its exact corresponding source. You can
 also build the app from this repository. In either case, sign the IPA with your
 own Apple ID; one device build supports both iPhone and iPad.
