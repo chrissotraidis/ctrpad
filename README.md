@@ -55,8 +55,6 @@ the project or a build.
 
 | Target | Current status | Best path today |
 |---|---|---|
-| Apple Silicon Mac | **Supported** | Download `CTRPad-macOS-arm64-*.zip` from [GitHub Releases](https://github.com/chrissotraidis/ctrpad/releases), or build `CTRPad.app` locally. |
-| iPhone and iPad | **Supported** | Download the retail-free unsigned IPA from [GitHub Releases](https://github.com/chrissotraidis/ctrpad/releases), then sign it with your own Apple ID. One IPA supports both device families. |
 | iOS Simulator | **Available for development** | Build the Simulator preset and use the guarded installer. Simulator is not physical-device proof. |
 | Windows and Linux | **Supported by the native codebase** | Use the desktop scripts or CMake presets. Apple platforms are CTRPad's primary focus. |
 | App Store / TestFlight | **Not announced** | No official listing, public TestFlight, or paid build exists. |
@@ -68,15 +66,13 @@ operating system, and the full controller hardware matrix remains open.
 
 ## Download and install
 
-[**Download v0.1.2**](https://github.com/chrissotraidis/ctrpad/releases/tag/v0.1.2) includes the new iOS Options menu, diagnostic-log export, empty blue kart app icon and updated iPad touch defaults. The native particle-pool allocation fix is included on both Apple platforms.
+Previous builds have been retired; a new version is in progress.
 
 On iPhone/iPad, use **Options → Export diagnostic logs → Save to Files** after a problem. See [diagnostics instructions](docs/DIAGNOSTICS.md).
 
 You need two separate things:
 
-1. **CTRPad**, downloaded from [GitHub Releases](https://github.com/chrissotraidis/ctrpad/releases).
-2. **Your own compatible Crash Team Racing disc image.** Game data is never
-   included in CTRPad, its source, or its release packages.
+Previous builds have been retired; a new version is in progress.
 
 ### Apple Silicon Mac
 
@@ -481,11 +477,7 @@ runtime.
 
 ### Can I download an IPA or macOS ZIP?
 
-Yes. Tagged [GitHub Releases](https://github.com/chrissotraidis/ctrpad/releases)
-include a retail-free unsigned IPA, an Apple Silicon macOS ZIP, and the exact
-corresponding-source archive with SHA-256 sidecars. The IPA still requires
-user-side signing, and an ad-hoc-signed macOS package is not an App Store,
-TestFlight, or notarized public release.
+Previous builds have been retired; a new version is in progress.
 
 ### Can I move, resize, fade, or hide the touch controls?
 
