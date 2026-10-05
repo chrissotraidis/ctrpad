@@ -388,11 +388,8 @@ internal void Platform_CalcFPS(void)
 
 internal void Platform_GetWindowName(const char *appName, char *buffer, size_t bufferSize)
 {
-#ifdef CTR_INTERNAL
-	snprintf(buffer, bufferSize, "%s | Internal", appName);
-#else
+	// Every build defines CTR_INTERNAL for upstream's developer tooling; players see only the game's name.
 	snprintf(buffer, bufferSize, "%s", appName);
-#endif
 }
 
 internal void Platform_HandleWindowResize(int width, int height)
