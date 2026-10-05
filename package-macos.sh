@@ -9,15 +9,17 @@ fail() {
 
 usage() {
     cat <<'EOF'
-Usage: ./package-macos.sh [--build] [--identity NAME] [--notary-profile NAME]
+Usage: ./package-macos.sh [--build] [--output PATH] [--identity NAME] [--notary-profile NAME]
 
 Creates a retail-free Apple Silicon CTRPad.app ZIP under dist/.
+--output writes the ZIP to PATH instead (PadMint uses this for personal builds).
 Without --identity the staged app is ad-hoc signed. --notary-profile requires
 a Developer ID Application identity and submits with xcrun notarytool.
 EOF
 }
 
 build_app=0
+output_path=""
 signing_identity=""
 notary_profile=""
 
@@ -26,6 +28,11 @@ while [ "$#" -gt 0 ]; do
         --build)
             build_app=1
             shift
+            ;;
+        --output)
+            [ "$#" -ge 2 ] || fail "--output requires a value"
+            output_path=$2
+            shift 2
             ;;
         --identity)
             [ "$#" -ge 2 ] || fail "--identity requires a value"
@@ -122,8 +129,20 @@ codesign --verify --deep --strict --verbose=2 "$stage_app"
 
 version=$(plutil -extract CFBundleShortVersionString raw -o - "$info_plist")
 short_commit=$(printf '%s' "$source_commit" | cut -c1-12)
-mkdir -p "$repo_root/dist"
-archive="$repo_root/dist/CTRPad-macOS-arm64-${version}-${short_commit}.zip"
+if [ -n "$output_path" ]; then
+    case "$output_path" in
+        *.zip) ;;
+        *) fail "--output must end in .zip" ;;
+    esac
+    case "$output_path" in
+        /*) archive=$output_path ;;
+        *) archive="$repo_root/$output_path" ;;
+    esac
+    mkdir -p "$(dirname "$archive")"
+else
+    mkdir -p "$repo_root/dist"
+    archive="$repo_root/dist/CTRPad-macOS-arm64-${version}-${short_commit}.zip"
+fi
 rm -f "$archive" "$archive.sha256"
 ditto -c -k --sequesterRsrc --keepParent "$stage_app" "$archive"
 
@@ -138,7 +157,7 @@ fi
 archive_hash=$(shasum -a 256 "$archive" | cut -d ' ' -f 1)
 printf '%s  %s\n' "$archive_hash" "$(basename "$archive")" > "$archive.sha256"
 (
-    cd "$repo_root/dist"
+    cd "$(dirname "$archive")"
     shasum -a 256 -c "$(basename "$archive").sha256" >/dev/null
 )
 echo "macOS package: $archive"

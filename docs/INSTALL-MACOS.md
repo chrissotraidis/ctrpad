@@ -1,16 +1,16 @@
 # Install CTRPad on macOS
 
 > [!IMPORTANT]
-> **Downloads retired.** Prebuilt builds are no longer published, and release
-> links on this page no longer work. A build-it-yourself version is in progress.
+> **Build your own copy with [PadMint](https://github.com/chrissotraidis/padmint/releases/latest).**
+> CTRPad releases publish no app, only the recipe PadMint follows.
 
 CTRPad is a native Apple Silicon application for macOS 11 or newer. The app
 contains no Crash Team Racing data. On first launch it asks you to choose your
 own compatible NTSC-U single-track raw MODE2/2352 BIN.
 
-Build `CTRPad.app` locally using the short sequence below, or use a
-`CTRPad-macOS-arm64-*.zip` from a tagged
-GitHub Release (retired).
+Build `CTRPad.app` with PadMint, which saves a ZIP of the app in the folder
+you choose, or locally using the short sequence below. Earlier releases with
+prebuilt Mac ZIPs are retired.
 
 ## Quick local build
 
@@ -24,10 +24,9 @@ ctest --preset macos-arm64-app --output-on-failure
 open build-macos-arm64-app/CTRPad.app
 ```
 
-## Install a packaged build
+## Install a PadMint or packaged build
 
-1. Download `CTRPad-macOS-arm64-*.zip` from a GitHub release that includes a
-   macOS package, or build the app locally as described below.
+1. Build the ZIP with PadMint, or package the app locally as described below.
 2. Open the archive and move `CTRPad.app` to Applications.
 3. Open CTRPad.
 4. Choose your own compatible retail BIN when prompted.

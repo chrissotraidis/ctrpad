@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "id": "ctrpad",
+  "name": "CTRPad",
+  "game": "Crash Team Racing (PlayStation) via CTR Native and the CTR-ModSDK decompilation",
+  "kind": "decomp-patches",
+  "status": "experimental",
+  "inputs": [
+    {
+      "type": "psx-disc",
+      "formats": [
+        "bin"
+      ],
+      "when": "in-app",
+      "description": "Your own North American Crash Team Racing disc (SCUS_944.26) as a single-track raw MODE2/2352 BIN, chosen in the app after installation. The build does not read it."
+    }
+  ],
+  "targets": {
+    "ios": {
+      "hosts": {
+        "macos-arm64": "experimental"
+      },
+      "output": "ipa",
+      "check": "ipa",
+      "steps": [
+        {
+          "stage": "preflight",
+          "command": [
+            "{python}",
+            "{repo}/tools/check-sources.py"
+          ]
+        },
+        {
+          "stage": "configure",
+          "command": [
+            "cmake",
+            "--preset",
+            "ios-device-arm64"
+          ]
+        },
+        {
+          "stage": "compile",
+          "command": [
+            "cmake",
+            "--build",
+            "--preset",
+            "ios-device-arm64"
+          ]
+        },
+        {
+          "stage": "package",
+          "command": [
+            "{repo}/package-ios.sh",
+            "--output",
+            "{output}"
+          ]
+        }
+      ]
+    },
+    "macos": {
+      "hosts": {
+        "macos-arm64": "experimental"
+      },
+      "output": "zip",
+      "check": "none",
+      "steps": [
+        {
+          "stage": "preflight",
+          "command": [
+            "{python}",
+            "{repo}/tools/check-sources.py"
+          ]
+        },
+        {
+          "stage": "configure",
+          "command": [
+            "cmake",
+            "--preset",
+            "macos-arm64-app"
+          ]
+        },
+        {
+          "stage": "compile",
+          "command": [
+            "cmake",
+            "--build",
+            "--preset",
+            "macos-arm64-app"
+          ]
+        },
+        {
+          "stage": "package",
+          "command": [
+            "{repo}/package-macos.sh",
+            "--output",
+            "{output}"
+          ]
+        }
+      ]
+    }
+  },
+  "requirements": {
+    "disk_gb": 2,
+    "tools": [
+      {
+        "name": "git",
+        "version_args": [
+          "--version"
+        ]
+      },
+      {
+        "name": "cmake",
+        "version_args": [
+          "--version"
+        ],
+        "min_version": "3.20",
+        "player": true,
+        "note": "Install CMake 3.20 or newer: brew install cmake"
+      },
+      {
+        "name": "ninja",
+        "version_args": [
+          "--version"
+        ],
+        "player": true,
+        "note": "Install Ninja: brew install ninja"
+      },
+      {
+        "name": "python3",
+        "version_args": [
+          "--version"
+        ]
+      },
+      {
+        "name": "xcodebuild",
+        "version_args": [
+          "-version"
+        ],
+        "player": true,
+        "label": "Xcode",
+        "note": "Install Xcode from the App Store, open it once, and add the iOS platform for iPhone and iPad builds."
+      }
+    ]
+  },
+  "publication": {
+    "public_binaries": false,
+    "reason": "Apps are compiled from the CTR-ModSDK decompilation, so every app is a personal build. Releases publish the recipe only."
+  }
+}
