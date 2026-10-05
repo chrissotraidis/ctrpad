@@ -10,7 +10,7 @@ export a reviewed report. Each raw log segment is limited to approximately
 8 MiB (plus the final log line); rotation also occurs at launch. Copy the files
 soon after a problem, before repeated launches or long sessions replace them.
 
-v0.1.2 includes:
+Since v0.1.2, CTRPad includes:
 
 - Full source commit for Git builds, dirty build label, platform and SDL
   version at startup (extracted archives use their known source identity);
@@ -51,7 +51,7 @@ reporter's original reproduction is still needed; the issue remains open.
 
 ## iOS: exporting diagnostics
 
-In v0.1.2, open **Options → Export diagnostic logs → Save to Files**. After an unexpected exit, reopen the app and export before repeatedly relaunching: retention is limited to the current log and four older segments. Review the text, then attach it to the CTRPad issue with the action/track that triggered the problem. Nothing is uploaded automatically.
+From v0.1.2, open **Options → Export diagnostic logs → Save to Files**. After an unexpected exit, reopen the app and export before repeatedly relaunching: retention is limited to the current log and four older segments. Review the text, then attach it to the CTRPad issue with the action/track that triggered the problem. Nothing is uploaded automatically.
 
 The report includes app version/build/full source commit, OS and hardware model, thermal state, control/display settings, and up to 128 KiB from each of five log segments. Large segments keep their header and tail; the omitted middle is labelled. Snapshot reads hold the logger lock, preventing rotation from invalidating the read. Path, email, UUID and credential-pattern lines are omitted. Saves, disc images, preferences files, signing material and device names/identifiers are never collected. Review remains important because logs are free-form text.
 

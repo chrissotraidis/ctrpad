@@ -24,6 +24,12 @@
       "check": "ipa",
       "steps": [
         {
+          "stage": "check",
+          "command": [
+            "{repo}/tools/check-ios-sdk.sh"
+          ]
+        },
+        {
           "stage": "preflight",
           "command": [
             "{python}",
