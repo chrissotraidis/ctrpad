@@ -8,9 +8,9 @@ CTRPad is a native Apple Silicon application for macOS 11 or newer. The app
 contains no Crash Team Racing data. On first launch it asks you to choose your
 own compatible NTSC-U single-track raw MODE2/2352 BIN.
 
-Build `CTRPad.app` with PadMint, which saves a ZIP of the app in the folder
-you choose, or locally using the short sequence below. Earlier releases with
-prebuilt Mac ZIPs are retired.
+Build `CTRPad.app` with PadMint (choose **CTRPad**, then **This Mac**), which
+saves a ZIP of the app in your Downloads folder, or locally using the short
+sequence below. Earlier releases with prebuilt Mac ZIPs are retired.
 
 ## Quick local build
 
