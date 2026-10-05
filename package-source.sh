@@ -111,6 +111,8 @@ for required_file in \
     RIGHTS_AND_LICENSES.md \
     THIRD_PARTY_NOTICES.md \
     build.sh \
+    padmint.json \
+    version.json \
     docs/DECISIONS.md \
     docs/INSTALL-IOS.md \
     docs/INSTALL-MACOS.md \

@@ -6,7 +6,11 @@ if(IOS OR APPLE)
     enable_language(OBJC)
 endif()
 
-set(CTR_NATIVE_VERSION "0.1.2")
+# version.json is the single release version: PadMint reads it, and the app bundles use it.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.json" CTRPAD_VERSION_JSON)
+string(JSON CTR_NATIVE_VERSION GET "${CTRPAD_VERSION_JSON}" version)
+string(JSON CTRPAD_BUILD_NUMBER GET "${CTRPAD_VERSION_JSON}" build)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/version.json")
 option(CTR_NATIVE_MACOS_BUNDLE "Build CTR Native as a macOS application bundle" OFF)
 set(CTR_NATIVE_SOURCE_COMMIT "" CACHE STRING
     "Source commit for a renamed corresponding-source tree without .git"
@@ -290,7 +294,7 @@ if(CTR_NATIVE_MACOS_BUNDLE)
         MACOSX_BUNDLE_INFO_STRING "Touch-first native Crash Team Racing runtime"
         MACOSX_BUNDLE_LONG_VERSION_STRING "${CTR_NATIVE_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${CTR_NATIVE_VERSION}"
-        MACOSX_BUNDLE_BUNDLE_VERSION "4"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${CTRPAD_BUILD_NUMBER}"
         MACOSX_BUNDLE_COPYRIGHT "GPL-3.0; retail game data is user-supplied"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/platform/apple/Info.plist.in"
     )
@@ -312,7 +316,7 @@ if(IOS)
         MACOSX_BUNDLE_INFO_STRING "Touch-first native Crash Team Racing runtime"
         MACOSX_BUNDLE_LONG_VERSION_STRING "${CTR_NATIVE_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${CTR_NATIVE_VERSION}"
-        MACOSX_BUNDLE_BUNDLE_VERSION "4"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${CTRPAD_BUILD_NUMBER}"
         MACOSX_BUNDLE_COPYRIGHT "GPL-3.0; retail game data is user-supplied"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/platform/apple/Info-iOS.plist.in"
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${CTR_NATIVE_IOS_BUNDLE_IDENTIFIER}"

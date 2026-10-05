@@ -1,11 +1,15 @@
-name: Apple release packages
+name: Apple builds
+
+# Build and test checks only. CTRPad apps are compiled from the CTR-ModSDK
+# decompilation, so this workflow never uploads or publishes an app. Releases
+# publish the PadMint recipe (padmint.json) and SHA256SUMS only; players build
+# their own copy with PadMint.
 
 on:
   pull_request:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches: [main]
 
 permissions:
   contents: read
@@ -21,24 +25,16 @@ jobs:
       - name: Install build tools
         run: brew install cmake ninja
       - name: Build and package
-        run: ./package-macos.sh --build
+        run: ./package-macos.sh --build --output "$RUNNER_TEMP/CTRPad-macos-check.zip"
       - name: Test runtime and logger
         run: |
           ctest --preset macos-arm64-app --output-on-failure
           python3 tools/test-native-log.py
           python3 tools/test-diagnostics.py
           python3 tools/test-source-lock.py
-      - name: Upload macOS package
-        uses: actions/upload-artifact@v4
-        with:
-          name: ctrpad-macos-arm64
-          path: |
-            dist/CTRPad-macOS-arm64-*.zip
-            dist/CTRPad-macOS-arm64-*.zip.sha256
-          if-no-files-found: error
 
   ios:
-    name: Unsigned iPhone and iPad IPA
+    name: Unsigned iPhone and iPad app
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -47,15 +43,7 @@ jobs:
       - name: Install build tools
         run: brew install cmake ninja
       - name: Build and package
-        run: ./package-ios.sh --build
-      - name: Upload unsigned IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: ctrpad-ios-unsigned
-          path: |
-            dist/*.ipa
-            dist/*.ipa.sha256
-          if-no-files-found: error
+        run: ./package-ios.sh --build --output "$RUNNER_TEMP/CTRPad-ios-check.ipa"
 
   source:
     name: Corresponding source
@@ -66,34 +54,15 @@ jobs:
           fetch-depth: 0
       - name: Package corresponding source
         run: ./package-source.sh
-      - name: Upload corresponding source
-        uses: actions/upload-artifact@v4
-        with:
-          name: ctrpad-source
-          path: |
-            dist/CTRPad-source-*.tar.gz
-            dist/CTRPad-source-*.tar.gz.sha256
-          if-no-files-found: error
-
-  release:
-    name: Attach packages to tagged release
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-    needs: [macos, ios, source]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download packages
-        uses: actions/download-artifact@v4
-        with:
-          path: release-assets
-          merge-multiple: true
-      - name: Create or update GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
+      - name: Check the PadMint recipe and version
         run: |
-          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes --title "CTRPad ${GITHUB_REF_NAME}"
-          fi
-          gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber
+          python3 - <<'PY'
+          import json
+          recipe = json.load(open("padmint.json"))
+          version = json.load(open("version.json"))
+          assert recipe["id"] == "ctrpad", recipe["id"]
+          assert recipe["publication"]["public_binaries"] is False, "CTRPad must never publish apps"
+          assert isinstance(version["version"], str) and version["version"], version
+          assert isinstance(version["build"], int) and version["build"] > 0, version
+          print("padmint.json and version.json OK:", version["version"], "build", version["build"])
+          PY

@@ -55,6 +55,7 @@ the project or a build.
 
 | Target | Current status | Best path today |
 |---|---|---|
+| iPhone, iPad and Apple Silicon Mac | **Build your own with PadMint** | [PadMint](https://github.com/chrissotraidis/padmint/releases/latest) builds CTRPad on your Apple Silicon Mac from this repository's latest release. Releases publish no app. |
 | iOS Simulator | **Available for development** | Build the Simulator preset and use the guarded installer. Simulator is not physical-device proof. |
 | Windows and Linux | **Supported by the native codebase** | Use the desktop scripts or CMake presets. Apple platforms are CTRPad's primary focus. |
 | App Store / TestFlight | **Not announced** | No official listing, public TestFlight, or paid build exists. |
@@ -64,40 +65,43 @@ an iPad Pro, and an iPhone 14. The screenshots below are iPad captures.
 Physical controller compatibility still depends on the controller model and
 operating system, and the full controller hardware matrix remains open.
 
-## Download and install
+## Get CTRPad
 
-Previous builds have been retired; a new version is in progress.
+CTRPad releases publish no app. The game code is compiled from the CTR-ModSDK
+decompilation, so you build your own copy on your own Mac, and the app asks for
+your own disc image after it is installed. PadMint does the building for you.
 
-On iPhone/iPad, use **Options → Export diagnostic logs → Save to Files** after a problem. See [diagnostics instructions](docs/DIAGNOSTICS.md).
+You need:
 
-You need two separate things:
+- a Mac with Apple Silicon (M1 or newer);
+- [Xcode](https://apps.apple.com/app/xcode/id497799835), opened once, with its
+  iOS platform added if you want the iPhone and iPad app;
+- CMake and Ninja: `brew install cmake ninja`; and
+- your own compatible Crash Team Racing disc image (see below).
 
-Previous builds have been retired; a new version is in progress.
+Then:
 
-### Apple Silicon Mac
+1. Download [PadMint](https://github.com/chrissotraidis/padmint/releases/latest),
+   unzip it and double-click `PadMint.command`.
+2. Choose **CTRPad**, then **iPhone and iPad** or **Mac**. PadMint downloads this
+   repository's latest release, builds the app and saves it where you choose:
+   an unsigned IPA for iPhone and iPad, or a ZIP of `CTRPad.app` for the Mac.
+3. **iPhone or iPad:** sign and install the IPA with your own Apple ID using a
+   sideloading tool such as AltStore Classic, then choose your BIN through
+   Files in the app. For a later version, install over the existing app with
+   the same tool and Apple ID; deleting the app also deletes its imported disc
+   and saves.
+4. **Mac:** open the ZIP, move `CTRPad.app` to Applications, open it and choose
+   your BIN when it asks.
 
-1. Download `CTRPad-macOS-arm64-*.zip` from the latest release.
-2. Open the ZIP and move `CTRPad.app` to Applications.
-3. Open CTRPad. If macOS blocks an ad-hoc-signed build, Control-click the app,
-   choose **Open**, and confirm once. Do not disable Gatekeeper system-wide.
-4. Select your compatible retail BIN when CTRPad asks for it.
+The same IPA supports iOS and iPadOS 15 or newer. Earlier releases with
+prebuilt downloads are retired. To build by hand instead, see
+[Build from source](#build-from-source),
+[Build, sign, and sideload CTRPad](docs/INSTALL-IOS.md) and
+[Install CTRPad on macOS](docs/INSTALL-MACOS.md).
 
-See [Install CTRPad on macOS](docs/INSTALL-MACOS.md) for build-from-source,
-fullscreen, controls, saves, and signing details.
-
-### iPhone or iPad
-
-1. Download `CTRPad-*-unsigned.ipa` from the latest release.
-2. Sign the IPA with your own Apple ID using a compatible sideloading tool,
-   such as AltStore Classic, then install it on the device. The downloaded IPA
-   is intentionally unsigned and cannot be installed directly.
-3. Launch CTRPad and choose your compatible retail BIN through Files.
-4. For later CTRPad versions, update-install over the existing app whenever
-   possible. Deleting the app also deletes its private imported disc and saves.
-
-The same IPA supports iOS and iPadOS 15 or newer. See
-[Build, sign, and sideload CTRPad](docs/INSTALL-IOS.md) for personal signing,
-developer signing, source builds, and safe updates.
+On iPhone/iPad, use **Options → Export diagnostic logs → Save to Files** after a
+problem. See [diagnostics instructions](docs/DIAGNOSTICS.md).
 
 ### Required Crash Team Racing disc image
 
@@ -477,7 +481,9 @@ runtime.
 
 ### Can I download an IPA or macOS ZIP?
 
-Previous builds have been retired; a new version is in progress.
+No. Releases publish only the recipe PadMint follows, because the app contains
+game code compiled from the decompilation. Build your own copy with PadMint; see
+[Get CTRPad](#get-ctrpad). Please don't share built apps in issues or chats.
 
 ### Can I move, resize, fade, or hide the touch controls?
 
