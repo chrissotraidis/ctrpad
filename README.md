@@ -83,9 +83,10 @@ Then:
 
 1. Download [PadMint](https://github.com/chrissotraidis/padmint/releases/latest),
    unzip it and double-click `PadMint.command`.
-2. Choose **CTRPad**, then **iPhone and iPad** or **Mac**. PadMint downloads this
-   repository's latest release, builds the app and saves it where you choose:
-   an unsigned IPA for iPhone and iPad, or a ZIP of `CTRPad.app` for the Mac.
+2. Choose **CTRPad**, then **iPhone or iPad** or **This Mac**, and select
+   **Make my copy**. PadMint downloads this repository's latest release, builds
+   the app and saves it in your Downloads folder: an unsigned IPA for iPhone and
+   iPad, or a ZIP of `CTRPad.app` for the Mac.
 3. **iPhone or iPad:** sign and install the IPA with your own Apple ID using a
    sideloading tool such as AltStore Classic, then choose your BIN through
    Files in the app. For a later version, install over the existing app with
