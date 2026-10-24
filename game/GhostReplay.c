@@ -347,7 +347,7 @@ void GhostReplay_Init1(void)
 	// 0: human ghost, 1: N Tropy / Oxide ghost
 	for (s32 i = 0; i < 2; i++)
 	{
-		struct GhostTape *tape = MEMPACK_AllocMem(0x268);
+		struct GhostTape *tape = MEMPACK_AllocMem(sizeof(*tape));
 		sdata->ptrGhostTape[i] = tape;
 
 		if (i == 0)
