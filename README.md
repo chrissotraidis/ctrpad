@@ -55,7 +55,7 @@ the project or a build.
 
 | Target | Current status | Best path today |
 |---|---|---|
-| iPhone, iPad and Apple Silicon Mac | **Build your own with PadMint** | [PadMint](https://github.com/chrissotraidis/padmint/releases/latest) builds CTRPad on your Apple Silicon Mac from this repository's latest release. Releases publish no app. |
+| iPhone, iPad and Apple Silicon Mac | **Build your own with PadMint** | [PadMint](https://github.com/chrissotraidis/padmint/releases/latest) builds CTRPad on your Apple Silicon Mac, or the iPhone and iPad app on [GitHub's free Mac](https://github.com/chrissotraidis/padmint#no-mac-build-on-githubs-mac) without one, from this repository's latest release. Releases publish no app. |
 | iOS Simulator | **Available for development** | Build the Simulator preset and use the guarded installer. Simulator is not physical-device proof. |
 | Windows and Linux | **Supported by the native codebase** | Use the desktop scripts or CMake presets. Apple platforms are CTRPad's primary focus. |
 | App Store / TestFlight | **Not announced** | No official listing, public TestFlight, or paid build exists. |
@@ -94,6 +94,10 @@ Then:
    and saves.
 4. **Mac:** open the ZIP, move `CTRPad.app` to Applications, open it and choose
    your BIN when it asks.
+
+**No Mac?** You can build the iPhone and iPad app on GitHub's free Mac from Windows,
+Linux or any computer with a web browser: follow
+[PadMint's steps](https://github.com/chrissotraidis/padmint#no-mac-build-on-githubs-mac).
 
 The same IPA supports iOS and iPadOS 15 or newer. Earlier releases with
 prebuilt downloads are retired. To build by hand instead, see
