@@ -14,15 +14,19 @@ directly. Do not replace the app repository or replay patches during builds.
   The app commit selects all engine, facade, and Apple platform modifications.
   CTR-ModSDK history is inherited through that foundation. GPL-3.0 text and
   component notices remain intact; see [rights](../../RIGHTS_AND_LICENSES.md).
-- SDL 3.4.10: upstream tag commit
-  `8e37db5e797b6167f3a00d697d816a684bd259c7`, tracked at `externals/SDL`.
+- SDL 3.4.18: upstream tag commit
+  `829a65d769d935c4852f8159e964312c0957260a`, tracked at `externals/SDL`.
   The exact selected tree is in [sources.lock.json](../../sources.lock.json).
   CTR Native's import `0aba5644385f05910bd772c94d308fab0d1f0c22`
   already normalized line endings and omitted upstream packaging/generated
   files. It is not a byte-identical SDL checkout. CTRPad's additional UIKit
   changes are ordinary commits `6b268157888fbe66b8a4910ae6bf02db6b095d2b`
   and `253b8f505509acb7fb82b4b10e7aeb39a2174e73`: balanced view transitions
-  and display-link common run-loop modes. Zlib license; no version upgrade.
+  and display-link common run-loop modes. The 3.4.10 → 3.4.18 update applies
+  the upstream delta to retained files with normalized line endings and trailing
+  whitespace; the
+  upstream-only `AGENTS.md` remains omitted. The UIKit patches are unchanged.
+  Zlib license.
 - PSn00bSDK: the tracked header subset at `include/psn00bsdk`, inherited at
   the CTR Native base above, with its own exact tree in the lock. MPL-2.0
   notices remain in the headers and `LICENSE.md`. No `libpsn00b` is linked.
