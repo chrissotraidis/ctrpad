@@ -53,4 +53,37 @@ built, not used as runtime evidence for this correction.
 Private backups, signed package, device logs and screenshots remain under
 ignored `dist/ipad-maintenance-install.v0Xhf1/layout-fix/`. No binary, retail
 material, save or signing data was added to Git. Nothing was pushed or
-published; the installed version remains 0.2.3 (build 8).
+published during that initial test; its installed version was 0.2.3 (build 8).
+
+## Final 0.2.4 release installation
+
+After [PR #48](https://github.com/chrissotraidis/ctrpad/pull/48) merged and
+[0.2.4 was published](https://github.com/chrissotraidis/ctrpad/releases/tag/v0.2.4),
+the final release build was installed on the same physical iPad on October 27,
+2026. The installed version is **0.2.4 (build 9)** from release commit
+`7cdf9ef067511fc0fbc3f8dacb9f83e6e732a115`.
+
+The app came from the successful post-publication PadMint iOS player check.
+Its package hash, version and full source identity were verified before
+signing; the existing application, team and keychain identities matched.
+Signing verification and device preflight passed before the in-place update.
+
+CTRPad was stopped and a fresh Documents/Library backup was taken. Comparing
+SHA-256 manifests before the first launch confirmed the imported game data,
+saves and preferences were unchanged. There were no unexpected differences
+among the 24 original files; iPadOS discarded eight launch-screen snapshot
+cache files during the update. The backup remains private and local.
+
+Device evidence confirmed the installed 0.2.4/build-9 identity, successful
+launch and a running process afterward. A physical-device screenshot showed
+the picture and controls correctly positioned in landscape; the startup log
+reported 1366×1024 points and 2732×2048 pixels, with no ERROR or FATAL entries.
+The owner's successful portrait-to-landscape rotation check above was on the
+preceding build containing the same layout fix; it was not repeated as a new
+owner test of the final release package. Completed-race, extended gameplay
+and controller-specific acceptance remain open.
+
+Final-install evidence is under ignored `dist/ipad-final-024-3y2vav9m/`.
+No private package, screenshot, game data, save or signing material is tracked
+or publicly attached. See the [release checks](2026-10-27-maintenance-validation.md#release-and-final-device-checks)
+for hosted CI, publication audits and fresh-player build results.

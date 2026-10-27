@@ -1,8 +1,10 @@
 # Local maintenance validation — October 27, 2026
 
 Implemented the focused changes from the [update review](2026-10-27-update-review.md)
-on `codex/docs-and-update-review`, using the existing checkout. Nothing was
-pushed, tagged, released, or uploaded. Version remains 0.2.3 (build 8).
+on `codex/docs-and-update-review`, using the existing checkout. The initial
+local validation used version 0.2.3 (build 8). The work subsequently merged
+and shipped as **0.2.4 (build 9)**; release and final-device results are recorded
+[below](#release-and-final-device-checks).
 
 | Local commit | Change |
 |---|---|
@@ -52,11 +54,13 @@ recorded above. Completed races, low-memory gameplay, Options/audio
 interaction during play, split-screen behavior, and the specific
 Xbox/8BitDo/Joy-Con/Steam Controller hardware fixes remain unverified. Simulator
 startup and the software tests do not establish those results. Windows/Linux
-builds and the actual GitHub-hosted checkout action were not exercised here.
+builds remain unverified. The GitHub-hosted Apple/source workflow subsequently
+passed on both the PR and release commit, including the updated checkout action.
 
-An eventual release still requires PadMint's current-main `player-check.sh`
-before tagging and after publication, plus audits of the recipe and checksum.
-Public app binaries remain prohibited. The 0.2.3 published release notes were
+The required PadMint current-main player checks before tagging and after
+publication, plus recipe/checksum audits, passed for 0.2.4 as recorded below.
+Future releases require their own checks. Public app binaries remain prohibited.
+The 0.2.3 published release notes were
 left unchanged; their proposed correction remains in the review.
 
 ## Local outputs and reproduction
@@ -115,3 +119,36 @@ false. Private device evidence stays ignored.
 This review supports pushing the source branch for hosted CI. It does not
 replace the remaining gameplay/controller checks or release gates above.
 No push, hosted workflow, tag or release was performed during this review.
+
+## Release and final device checks
+
+[PR #48](https://github.com/chrissotraidis/ctrpad/pull/48) merged as
+`7cdf9ef067511fc0fbc3f8dacb9f83e6e732a115`.
+[CTRPad 0.2.4](https://github.com/chrissotraidis/ctrpad/releases/tag/v0.2.4)
+tags that commit and sets `version.json` to 0.2.4, build 9.
+
+- All three jobs (iOS, macOS and corresponding source) passed in
+  [PR CI](https://github.com/chrissotraidis/ctrpad/actions/runs/40459016393) and
+  [main CI](https://github.com/chrissotraidis/ctrpad/actions/runs/40459299289).
+- PadMint's `scripts/player-check.sh` passed for both iOS and macOS before
+  tagging with the clean checkout, then again after publication using the
+  public release without a checkout argument. All four runs used Apple's
+  Python 3.9 and separate empty PadMint folders, from PadMint main
+  `0d0596303c3b0adf2b78f771f29def357ef608c4`. Package hashes, 0.2.4/build-9
+  metadata and source revisions were verified.
+- The recipe and checksum passed both `python3 -m padmint audit` and the
+  private release gate. Downloaded public files matched the audited local
+  files and checksum. The release contains only `CTRPad-v0.2.4-padmint.json`
+  and `SHA256SUMS`; the workflow uploaded no app artifacts.
+- The final release build was signed and update-installed on the physical
+  iPad. Installed version, startup, running process and correct landscape
+  layout passed verification. A fresh backup and before/after hashes confirmed
+  game data, saves and preferences were preserved. See the
+  [final install record](2026-10-27-ipad-layout-fix.md#final-024-release-installation)
+  for the exact device-test scope.
+
+Private release checks and personal build outputs remain under ignored
+`dist/release-0.2.4/`. The four temporary player-check folders were removed
+after their package/run evidence was preserved; no extra project worktree
+remains from this release. The final installation does not extend acceptance
+to completed races, extended gameplay or untested controllers.
