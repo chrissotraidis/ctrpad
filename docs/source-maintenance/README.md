@@ -40,6 +40,10 @@ are source terms, not a general clearance for copyrighted game material.
 
 ## Compare and update
 
+See the [October 27, 2026 update review](2026-10-27-update-review.md) for
+specific upstream fixes and dependency upgrades recommended for the next
+maintenance pass. The review does not change the selected dependencies.
+
 Work on a branch and keep platform changes separate. To inspect upstream
 without changing the selected engine version:
 
@@ -67,9 +71,10 @@ delta, reproduction and logs; contacting upstream is a separate decision.
 
 ## Build and source delivery
 
-Apple packages ship for macOS ARM64 and iOS/iPadOS ARM64; Simulator is a
-separate development path. Windows x86/MSVC/MinGW and Linux i686 presets use
-the same tracked engine and SDL; they are not current Apple release assets.
+Personal Apple builds target macOS ARM64 and iOS/iPadOS ARM64; Simulator is a
+separate development path. Releases publish only the PadMint recipe and
+`SHA256SUMS`, never app packages. Windows x86/MSVC/MinGW and Linux i686 presets
+use the same tracked engine and SDL.
 No runtime disc image is needed to compile or run retail-free self-tests.
 Actual gameplay requires the user's compatible disc.
 

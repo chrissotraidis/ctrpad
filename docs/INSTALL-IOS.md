@@ -3,7 +3,9 @@
 > [!IMPORTANT]
 > **Build your own copy with [PadMint](https://github.com/chrissotraidis/padmint/releases/latest).**
 > CTRPad releases publish no app, only the recipe PadMint follows. PadMint builds
-> the unsigned IPA on your Apple Silicon Mac; you sign and install it as below.
+> the unsigned IPA on your Apple Silicon Mac or through
+> [GitHub Cloud Build](https://github.com/chrissotraidis/padmint#github-cloud-build-no-mac-needed)
+> without owning a Mac. You sign and install your personal copy as below.
 
 CTRPad is GPL-3.0 software. It does not include Crash Team Racing, a disc
 image, extracted retail data, saves, an Apple certificate, a private key, or a
@@ -25,10 +27,11 @@ IPAs are retired.
 | Goal | Recommended path |
 |---|---|
 | Play on your iPhone or iPad with a personal Apple ID | Build the unsigned IPA, then import it into a compatible sideloading tool such as AltStore Classic so that tool can sign it for your device. |
+| Build without a Mac | Follow [PadMint's GitHub Cloud Build guide](https://github.com/chrissotraidis/padmint#github-cloud-build-no-mac-needed), then sign and install your personal IPA. Your disc stays on your device. |
 | Install directly as an Apple developer | Build the device app and run `package-ios.sh` with your development identity, matching profile, and device UDID. |
 | Develop or inspect the UI without signing hardware | Build the Simulator target and use `tools/install-ios-simulator.sh`. |
 
-The simplest source-build sequence is:
+The simplest local source-build sequence on an Apple Silicon Mac is:
 
 ```sh
 brew install cmake ninja
@@ -45,10 +48,13 @@ Continue below for the exact signing and verification details.
 
 ## Requirements
 
-The packaging and structured device-evidence tools require Python 3.
+Local source builds need an Apple Silicon Mac with Xcode, its command-line
+tools and the iOS platform installed, plus CMake 3.20 or newer and Ninja.
+The packaging and structured device-evidence tools require Python 3. These
+local build requirements do not apply to the GitHub Cloud Build route.
 
-- an ARM64 Mac with the current Xcode command-line tools;
-- CMake 3.20 or newer and Ninja;
+For installation, you need:
+
 - an iPhone or iPad running iOS/iPadOS 15 or newer;
 - Developer Mode enabled on the device for development-signed apps;
 - for direct signing, an Apple signing identity in the login keychain and a
@@ -96,12 +102,13 @@ Package the exact corresponding source from the same clean committed checkout:
 
 This writes `dist/CTRPad-source-<commit>.tar.gz` and its SHA-256 sidecar. The
 source packager includes the complete tracked source and build inputs, vendored
-SDL,
-build/package scripts, GPL license, notices, modification history and this
+SDL, build/package scripts, GPL license, notices, modification history and this
 Installation Information. It fails if tracked changes are present or if the
 archive contains retail/runtime data, an IPA, a profile, a certificate or a
-private-key-like file. Publish this archive alongside the matching signed or
-unsigned IPA. The app's `CTRNativeSourceCommit` identifies all 40 Git
+private-key-like file. Keep the source archive with your personal build for
+reproduction. CTRPad releases publish only `CTRPad-vX.Y.Z-padmint.json` and
+`SHA256SUMS`; never publish an IPA or other app build, including as a public
+workflow artifact. The app's `CTRNativeSourceCommit` identifies all 40 Git
 characters; the shorter build identity and filenames are display prefixes
 only. For a release build from an extracted archive, pass the full commit
 through the packager so CMake embeds the same exact identity:
@@ -180,7 +187,7 @@ Unpack the signed IPA and install its app bundle with Xcode's device tool:
 
 ```sh
 mkdir -p /private/tmp/ctrpad-install
-ditto -x -k dist/CTRPad-0.1.0-1-SOURCEPREFIX-signed.ipa /private/tmp/ctrpad-install
+ditto -x -k dist/CTRPad-VERSION-BUILD-SOURCEPREFIX-signed.ipa /private/tmp/ctrpad-install
 xcrun devicectl list devices
 xcrun devicectl device install app \
   --device YOUR_DEVICE_ID \
@@ -202,7 +209,7 @@ First validate the signed IPA without contacting an iPad:
 
 ```sh
 ./tools/ios-device-campaign.sh preflight \
-  --ipa dist/CTRPad-0.1.0-1-SOURCEPREFIX-signed.ipa \
+  --ipa dist/CTRPad-VERSION-BUILD-SOURCEPREFIX-signed.ipa \
   --source-commit FULL_40_CHARACTER_SOURCE_COMMIT \
   --device-udid YOUR_PHYSICAL_IPAD_UDID \
   --evidence-dir dist/device-acceptance-preflight
@@ -224,7 +231,7 @@ launch without uninstalling:
 
 ```sh
 ./tools/ios-device-campaign.sh prepare \
-  --ipa dist/CTRPad-0.1.0-1-SOURCEPREFIX-signed.ipa \
+  --ipa dist/CTRPad-VERSION-BUILD-SOURCEPREFIX-signed.ipa \
   --source-commit FULL_40_CHARACTER_SOURCE_COMMIT \
   --device-udid YOUR_PHYSICAL_IPAD_UDID \
   --evidence-dir dist/device-acceptance-initial

@@ -31,7 +31,7 @@ open build-macos-arm64-app/CTRPad.app
 3. Open CTRPad.
 4. Choose your own compatible retail BIN when prompted.
 
-A Developer ID-signed and notarized release opens normally. An ad-hoc-signed
+A personal Developer ID-signed and notarized build opens normally. An ad-hoc-signed
 package is not notarized; on first launch, Control-click the app,
 choose **Open**, and confirm macOS's prompt. Do not disable Gatekeeper
 system-wide.
@@ -107,7 +107,7 @@ ctest --preset macos-arm64-app
 The app is written to `build-macos-arm64-app/CTRPad.app` and ad-hoc signed for
 local execution.
 
-Create a retail-free distributable archive from a clean checkout:
+Create a ZIP of your personal build from a clean checkout:
 
 ```sh
 ./package-macos.sh --build
@@ -125,3 +125,5 @@ can produce a hardened, notarized archive:
 The package script verifies the bundle architecture, metadata, icon,
 signature, source identity, required legal resources, and absence of retail or
 runtime data before writing the ZIP and SHA-256 sidecar under ignored `dist/`.
+Keep this app private. CTRPad releases publish only the PadMint recipe and
+`SHA256SUMS`, never an app ZIP or other app build.
