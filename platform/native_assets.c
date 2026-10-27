@@ -830,7 +830,6 @@ internal int NativeAssets_ValidateXA(void)
 	u32 numXasTotal;
 	u32 numTracksTotal;
 	u32 entryOffset;
-	u32 entryEnd;
 	u32 missing = 0;
 	u32 categoryID;
 
@@ -851,10 +850,16 @@ internal int NativeAssets_ValidateXA(void)
 
 	numXasTotal = NativeAssets_ReadLE32(&xnf.data[NATIVE_ASSETS_XA_NUM_XAS_TOTAL_OFFSET]);
 	numTracksTotal = NativeAssets_ReadLE32(&xnf.data[NATIVE_ASSETS_XA_NUM_TRACKS_TOTAL_OFFSET]);
+	// Bound both tables before multiplying untrusted counts into offsets.
+	if (numXasTotal > (xnf.size - NATIVE_ASSETS_XA_HEADER_SIZE) / 4u)
+	{
+		NativeAssets_FreeBytes(&xnf);
+		fprintf(stderr, "[CTR Native] invalid XA position table: %s\n", NATIVE_ASSETS_XNF_PATH);
+		return 0;
+	}
 	entryOffset = NATIVE_ASSETS_XA_HEADER_SIZE + numXasTotal * 4u;
-	entryEnd = entryOffset + numTracksTotal * NATIVE_ASSETS_XA_ENTRY_BYTES;
 
-	if ((entryEnd < entryOffset) || (entryEnd > (u32)xnf.size))
+	if (numTracksTotal > (xnf.size - entryOffset) / NATIVE_ASSETS_XA_ENTRY_BYTES)
 	{
 		NativeAssets_FreeBytes(&xnf);
 		fprintf(stderr, "[CTR Native] invalid XA entry table: %s\n", NATIVE_ASSETS_XNF_PATH);

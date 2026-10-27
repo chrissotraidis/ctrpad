@@ -83,6 +83,10 @@
 #include "platform/native_renderer.c"
 #include "platform/native_savestate.c"
 #include "platform/native_state.c"
+
+#if defined(CTR_NATIVE_MAINTENANCE_TESTS)
+#include "tests/native_maintenance.c"
+#endif
 #include "platform/native_state_digest.c"
 #include "platform/native_storage.c"
 #include "platform/native_str.c"
@@ -691,6 +695,20 @@ int main(int argc, char *argv[])
 			}
 			rendererPixelSelfTest = 1;
 		}
+#if defined(CTR_NATIVE_MAINTENANCE_TESTS)
+		if (strcmp(argv[argIndex], "--self-test-full-dynamic") == 0)
+		{
+			return NativeMaintenance_FullDynamicTest();
+		}
+		if (strcmp(argv[argIndex], "--self-test-weapon-allocation") == 0)
+		{
+			return NativeMaintenance_WeaponTest();
+		}
+		if (strcmp(argv[argIndex], "--self-test-assets") == 0 && argIndex + 1 < argc)
+		{
+			return !(NativeAssets_SetBaseDir(NativeStr8_FromCString(argv[argIndex + 1])) && NativeAssets_Validate());
+		}
+#endif
 		if (strcmp(argv[argIndex], "--self-test-particle-pool") == 0)
 		{
 			return Particle_RunPoolSelfTest();

@@ -648,10 +648,14 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		// medium stack pool
 		weaponInst = INSTANCE_BirthWithThread(modelID, weaponName, MEDIUM, bucket, RB_MovingExplosive_ThTick, sizeof(struct TrackerWeapon), parentTh);
 
-		// NOTE(aalhendi): Native low-RAM audit candidate only. Retail
-		// dereferences weapon birth results before later checks in several
-		// branches of this function; keep unpatched until memory pressure or
-		// gameplay repro proves the semantic fallback.
+#ifdef CTR_NATIVE
+		if (weaponInst == NULL)
+		{
+			d->numTimesMissileLaunched--;
+			gGT->numMissiles--;
+			return;
+		}
+#endif
 
 		VehPickupItem_CopyMatrix(&weaponInst->matrix, &dInst->matrix);
 
@@ -772,6 +776,12 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		}
 
 		weaponInst = INSTANCE_BirthWithThread(modelID, mineName, SMALL, MINE, RB_GenericMine_ThTick, sizeof(struct MineWeapon), 0);
+#ifdef CTR_NATIVE
+		if (weaponInst == NULL)
+		{
+			return;
+		}
+#endif
 
 		dInst = d->instSelf;
 
@@ -916,6 +926,12 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 			modelID = STATIC_BEAKER_RED;
 
 			weaponInst = INSTANCE_BirthWithThread(modelID, sdata->s_beaker1, SMALL, MINE, RB_GenericMine_ThTick, sizeof(struct MineWeapon), 0);
+#ifdef CTR_NATIVE
+			if (weaponInst == NULL)
+			{
+				return;
+			}
+#endif
 		}
 
 		dInst = d->instSelf;
@@ -986,6 +1002,12 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 
 		weaponInst =
 		    INSTANCE_BirthWithThread(SHIELD_DARK_MODEL, shieldDarkName, MEDIUM, OTHER, RB_ShieldDark_ThTick_Grow, sizeof(struct Shield), d->instSelf->thread);
+#ifdef CTR_NATIVE
+		if (weaponInst == NULL)
+		{
+			return;
+		}
+#endif
 
 		weaponTh = weaponInst->thread;
 		weaponInst->scale.x = SHIELD_SCALE;
@@ -1001,8 +1023,21 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		}
 
 		struct Instance *instColor = INSTANCE_Birth3D(gGT->modelPtr[modelID], sdata->s_shield, weaponTh);
+#ifdef CTR_NATIVE
+		if (instColor == NULL)
+		{
+			goto ShieldBirthFailed;
+		}
+#endif
 
 		struct Instance *instHighlight = INSTANCE_Birth3D(gGT->modelPtr[DYNAMIC_HIGHLIGHT], highlightName, weaponTh);
+#ifdef CTR_NATIVE
+		if (instHighlight == NULL)
+		{
+			INSTANCE_Death(instColor);
+			goto ShieldBirthFailed;
+		}
+#endif
 
 		instColor->scale.x = SHIELD_SCALE;
 		instColor->scale.y = SHIELD_SCALE;
@@ -1034,6 +1069,13 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		weaponInst->alphaScale = SHIELD_ALPHA_SCALE;
 		d->instBubbleHold = weaponInst;
 		break;
+#ifdef CTR_NATIVE
+	ShieldBirthFailed:
+		// Birth prepended this thread; preserve the driver's existing children.
+		d->instSelf->thread->childThread = weaponTh->siblingThread;
+		PROC_DestroySelf(weaponTh);
+		return;
+#endif
 
 	// Mask
 	case WEAPON_ID_MASK:
@@ -1096,6 +1138,12 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		char *warpballName = rdata.s_warpball;
 
 		weaponInst = INSTANCE_BirthWithThread(WARPBALL_MODEL, warpballName, MEDIUM, TRACKING, RB_Warpball_ThTick, sizeof(struct TrackerWeapon), 0);
+#ifdef CTR_NATIVE
+		if (weaponInst == NULL)
+		{
+			return;
+		}
+#endif
 
 		weaponInst->matrix.m[0][0] = WARPBALL_MATRIX_IDENTITY_SCALE;
 		weaponInst->matrix.m[0][1] = 0;
