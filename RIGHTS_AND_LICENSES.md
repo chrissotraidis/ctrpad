@@ -41,10 +41,14 @@ branding.
 
 ## Redistribution
 
+CTRPad releases publish only `CTRPad-vX.Y.Z-padmint.json` and `SHA256SUMS`.
+Apps are compiled from the CTR-ModSDK decompilation and are personal builds.
+Do not publish, attach, or link an IPA, macOS app ZIP, APK, or other app build
+in releases, public workflow artifacts, issues, Discord, or sideloading sources.
+
 Redistributors are responsible for complying with the GPL, third-party license
-terms, local law, and platform signing requirements. A CTRPad binary should be
-accompanied by the corresponding source and installation information for the
-exact build. Do not add retail game data, saves, or maintainer signing material
-to a source or binary package.
+terms, local law, and platform signing requirements. Keep the corresponding
+source and installation information with your personal build. Do not add retail
+game data, saves, or signing material to published source or recipe files.
 
 This document records the project's intended boundary and is not legal advice.

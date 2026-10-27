@@ -14,6 +14,7 @@ jobs:
     name: ${{ matrix.platform.name }}
     runs-on: ${{ matrix.platform.os }}
     container: ${{ matrix.platform.container }}
+    continue-on-error: ${{ matrix.platform.allow-failure }}
     defaults:
       run:
         shell: ${{ matrix.platform.shell }}
@@ -200,7 +201,7 @@ jobs:
         run: |
           ${{ matrix.platform.source-cmd }}
           ${{ matrix.platform.cmake-config-emulator }} cmake -S . -B build -G "${{ matrix.platform.cmake-generator }}" \
-            -Wdeprecated -Wdev -Werror \
+            -Wdeprecated -Wdev -Werror=dev -Werror=deprecated \
             ${{ matrix.platform.cmake-toolchain-file != '' && format('-DCMAKE_TOOLCHAIN_FILE={0}', matrix.platform.cmake-toolchain-file) || '' }} \
             -DSDL_WERROR=${{ matrix.platform.werror }} \
             -DSDL_EXAMPLES=${{ matrix.platform.build-tests }} \
@@ -319,7 +320,7 @@ jobs:
       - name: 'Build (cross-platform-actions, BSD)'
         id: cpactions
         if: ${{ matrix.platform.cpactions }}
-        uses: cross-platform-actions/action@v0.32.0
+        uses: cross-platform-actions/action@v1
         with:
           operating_system: '${{ matrix.platform.cpactions-os }}'
           architecture: '${{ matrix.platform.cpactions-arch }}'
@@ -329,7 +330,7 @@ jobs:
             ${{ matrix.platform.cpactions-install-cmd }}
             cmake -S . -B build -GNinja  \
               ${{ matrix.platform.cmake-toolchain-file != '' && format('-DCMAKE_TOOLCHAIN_FILE={0}', matrix.platform.cmake-toolchain-file) || '' }} \
-              -Wdeprecated -Wdev -Werror \
+              -Wdeprecated -Wdev -Werror=dev -Werror=deprecated \
               -DSDL_WERROR=${{ matrix.platform.werror }} \
               -DSDL_INSTALL_DOCS=ON \
               ${{ matrix.platform.cmake-arguments }} \

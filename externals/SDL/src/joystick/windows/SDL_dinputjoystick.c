@@ -45,7 +45,6 @@ extern HWND SDL_HelperWindow;
 // local variables
 static bool coinitialized = false;
 static LPDIRECTINPUT8 dinput = NULL;
-static bool has_broken_EZFRD64DLL = false;
 
 // Taken from Wine - Thanks!
 static DIOBJECTDATAFORMAT dfDIJoystick2[] = {
@@ -438,29 +437,6 @@ bool SDL_DINPUT_JoystickInit(void)
         dinput = NULL;
         return SetDIerror("IDirectInput::Initialize", result);
     }
-
-#ifdef _WIN64
-    if (SDL_GetHintBoolean("SDL_JOYSTICK_CHECK_EZFRD64", true)) {
-        // The 64-bit version of EZFRD64.DLL crashes after being loaded,
-        // which happens implicitly when querying the device capabilities,
-        // so make sure we don't do that if there's a possibility of crashing
-        static const char *directories[] = {
-            "C:/Windows/USB_Vibration",
-            "C:/Windows/USB Vibration"
-        };
-        for (int i = 0; i < SDL_arraysize(directories) && !has_broken_EZFRD64DLL; ++i) {
-            int count = 0;
-            char **files = SDL_GlobDirectory(directories[i], "*/EZFRD64.DLL", SDL_GLOB_CASEINSENSITIVE, &count);
-            if (count > 0) {
-                has_broken_EZFRD64DLL = true;
-            }
-            SDL_free(files);
-        }
-        if (has_broken_EZFRD64DLL) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Broken EZFRD64.DLL detected, disabling DirectInput force feedback");
-        }
-    }
-#endif
     return true;
 }
 
@@ -644,6 +620,10 @@ static BOOL CALLBACK EnumDevObjectsCallback(LPCDIDEVICEOBJECTINSTANCE pDeviceObj
         in->ofs = DIJOFS_BUTTON(in->num);
         joystick->nbuttons++;
     } else if (pDeviceObject->dwType & DIDFT_POV) {
+        // DIJOYSTATE2.rgdwPOV only has room for 4 POVs, ignore any beyond that.
+        if (joystick->nhats >= 4) {
+            return DIENUM_CONTINUE;
+        }
         in->type = HAT;
         in->num = (Uint8)joystick->nhats;
         in->ofs = DIJOFS_POV(in->num);
@@ -802,7 +782,7 @@ bool SDL_DINPUT_JoystickOpen(SDL_Joystick *joystick, JoyStick_DeviceData *joysti
         return SetDIerror("IDirectInputDevice8::SetDataFormat", result);
     }
 
-    if (!has_broken_EZFRD64DLL) {
+    if (!WIN_HasBrokenEZFRD64DLL()) {
         // Get device capabilities to see if we are force feedback capable
         result =
             IDirectInputDevice8_GetCapabilities(joystick->hwdata->InputDevice,
@@ -1068,7 +1048,7 @@ static void UpdateDINPUTJoystickState_Polled(SDL_Joystick *joystick)
             break;
         case HAT:
         {
-            Uint8 pos = TranslatePOV(state.rgdwPOV[in->ofs - DIJOFS_POV(0)]);
+            Uint8 pos = TranslatePOV(state.rgdwPOV[in->num]);
             SDL_SendJoystickHat(timestamp, joystick, in->num, pos);
             break;
         }

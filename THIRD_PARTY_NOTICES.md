@@ -72,8 +72,8 @@ Path: `externals/SDL`
 SDL3 provides cross-platform host windowing, input, timing, and audio device
 support for CTR Native.
 
-Vendored version: 3.4.10 (`release-3.4.10`), upstream commit
-`8e37db5e797b6167f3a00d697d816a684bd259c7`. This is a modified vendored
+Vendored version: 3.4.18 (`release-3.4.18`), upstream commit
+`829a65d769d935c4852f8159e964312c0957260a`. This is a modified vendored
 copy: inherited import differences and CTRPad UIKit lifecycle/run-loop changes
 are recorded in `docs/source-maintenance/README.md`; the exact selected tree
 is in `sources.lock.json`.

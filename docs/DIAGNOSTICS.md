@@ -46,8 +46,14 @@ instruction is `str xzr, [x8, #8]`, in inlined oscillator destruction/free-list
 insertion. The oscillator link is invalid. This establishes the fault boundary,
 not which earlier operation corrupted it. The new checks distinguish update,
 destruction and free-head failures before an unsafe access. v0.1.2 also corrects the oscillator allocation from the original 24-byte stride
-to the host structure size (32 bytes on 64-bit builds). Confirmation against the
-reporter's original reproduction is still needed; the issue remains open.
+to the host structure size (32 bytes on 64-bit builds).
+
+The reporter confirmed repeated successful attempts on October 27, 2026
+(Japan time), after the 0.2.3 follow-up. Their original sequence was Adventure
+mode → Tiger Temple, skip the intro immediately, then look backward as soon as
+possible. [Issue #36 is closed as resolved](https://github.com/chrissotraidis/ctrpad/issues/36#issuecomment-6431828291).
+This is reporter confirmation of that sequence; it does not establish which
+fix removed the original fault or validate every particle effect.
 
 ## iOS: exporting diagnostics
 
@@ -61,6 +67,6 @@ The options menu groups diagnostics, touch controls and display settings. Touch 
 
 Host export checks: `python3 tools/test-diagnostics.py` (macOS/Foundation). Logger checks: `python3 tools/test-native-log.py`.
 
-During build-3 qualification, the new checks exposed an undersized native oscillator pool. The allocator now uses the host structure size; see [candidate validation](source-maintenance/2026-09-17-ios-test.md). This fix still needs confirmation against the original reporter’s crash.
+During build-3 qualification, the new checks exposed an undersized native oscillator pool. The allocator now uses the host structure size; see [candidate validation](source-maintenance/2026-09-17-ios-test.md). The original reporter has since confirmed that their Tiger Temple sequence works; see the issue record above.
 
 Build 4 moves diagnostics below touch controls. Done stays at the top while the settings scroll. The game and audio pause while Options or the layout editor is open, then resume on exit. The new iPad default uses the owner's simplified left-steering layout, Large size and approximately 53% opacity; existing custom layouts take precedence.
