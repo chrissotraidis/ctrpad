@@ -48,7 +48,10 @@ are source terms, not a general clearance for copyrighted game material.
 
 See the [October 27, 2026 update review](2026-10-27-update-review.md) for
 specific upstream fixes and dependency upgrades recommended for the next
-maintenance pass. The review does not change the selected dependencies.
+maintenance pass. That review records the original recommendations; the
+[maintenance validation](2026-10-27-maintenance-validation.md) records the
+implemented updates, and the [iPad layout correction](2026-10-27-ipad-layout-fix.md)
+records the subsequent hardware fix and successful owner rotation test.
 
 Work on a branch and keep platform changes separate. To inspect upstream
 without changing the selected engine version:

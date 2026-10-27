@@ -38,13 +38,17 @@ The reviewed SDL tree is now `da0ace7b54deef5b1fd7e4d1d16e922f1eb095d0`.
   unchanged. iPadOS discarded nine launch-screen snapshot cache files; those
   are retained in the local backup and are not game data.
 - Startup diagnostics contained no ERROR or FATAL entries.
+- After installation, the owner physically rotated the iPad to portrait and
+  back to landscape and confirmed that the picture and controls stayed
+  correctly positioned. This closes the reported layout and rotation defect
+  on the tested iPad; it is not a completed-race or controller acceptance result.
 
 The device orientation command returned success for a portrait request, but a
-subsequent query and screenshot still showed landscape. This is not evidence
-of a successful rotation test. Physical portrait/landscape rotation, live
-window resizing, Options interaction and completed gameplay remain separate
-acceptance checks. The Simulator was built, not used as runtime evidence for
-this correction.
+subsequent query and screenshot still showed landscape. That command was not
+evidence of a successful rotation test; the owner's subsequent physical test
+above supplies that confirmation. Live window resizing, Options interaction
+and completed gameplay remain separate acceptance checks. The Simulator was
+built, not used as runtime evidence for this correction.
 
 Private backups, signed package, device logs and screenshots remain under
 ignored `dist/ipad-maintenance-install.v0Xhf1/layout-fix/`. No binary, retail
