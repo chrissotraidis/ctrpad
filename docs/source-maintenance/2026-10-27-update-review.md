@@ -5,6 +5,11 @@ build 8), CTR Native master `3f5f6b8b28cee1d3501c420e83c11585505b4e2b`,
 SDL 3.4.10 through 3.4.18, and actions/checkout 7.0.1. This is a source
 review and recommendation, not an engine upgrade or gameplay acceptance.
 
+The recommended engine fixes, SDL update, and checkout-action update were
+subsequently implemented in separate local commits. See the
+[implementation and validation record](2026-10-27-maintenance-validation.md).
+The assessment below records the pre-change findings.
+
 The local main branch was fast-forwarded to GitHub's main. Documentation now
 records the Tiger Temple reporter's confirmation, consistently describes
 personal builds and recipe-only releases, and uses PadMint's current
