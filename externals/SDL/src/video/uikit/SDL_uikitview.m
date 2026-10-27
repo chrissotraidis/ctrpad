@@ -142,6 +142,7 @@ extern int SDL_AppleTVRemoteOpenedAsJoystick;
         // then attach the controller's replacement view directly.
         if (data.uiwindow.rootViewController == data.viewcontroller) {
             if (view && !view.superview) {
+                view.frame = data.uiwindow.bounds;
                 [data.uiwindow addSubview:view];
             }
         } else {
@@ -171,6 +172,13 @@ extern int SDL_AppleTVRemoteOpenedAsJoystick;
          * attach the replacement view directly instead. */
         if (data.uiwindow.rootViewController == data.viewcontroller) {
             if (!self.superview) {
+                /* CTRPad attaches the replacement without reinstalling the
+                 * root controller, so UIKit does not size it for us. Its
+                 * initial frame can still have the launch orientation. Fit
+                 * the current window before allocating the GL drawable and
+                 * laying out the touch overlay. Autoresizing handles later
+                 * rotations and window-size changes. */
+                self.frame = data.uiwindow.bounds;
                 [data.uiwindow addSubview:self];
             }
         } else {

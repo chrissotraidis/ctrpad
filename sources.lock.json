@@ -12,7 +12,7 @@
       "repository": "https://github.com/libsdl-org/SDL",
       "upstream_tag": "release-3.4.18",
       "upstream_commit": "829a65d769d935c4852f8159e964312c0957260a",
-      "tree": "0587efab2a78ddc4abcf71a4411f637029319951",
+      "tree": "da0ace7b54deef5b1fd7e4d1d16e922f1eb095d0",
       "license": "Zlib",
       "notice": "externals/SDL/LICENSE.txt",
       "modifications": "Inherited ctr-native import plus CTRPad UIKit changes; see docs/source-maintenance/README.md"

@@ -25,7 +25,9 @@ directly. Do not replace the app repository or replay patches during builds.
   and display-link common run-loop modes. The 3.4.10 → 3.4.18 update applies
   the upstream delta to retained files with normalized line endings and trailing
   whitespace; the
-  upstream-only `AGENTS.md` remains omitted. The UIKit patches are unchanged.
+  upstream-only `AGENTS.md` remains omitted. A subsequent UIKit correction sizes
+  replacement root views to the current window bounds before attaching them,
+  preventing portrait-sized rendering and controls after a landscape cold launch.
   Zlib license.
 - PSn00bSDK: the tracked header subset at `include/psn00bsdk`, inherited at
   the CTR Native base above, with its own exact tree in the lock. MPL-2.0
