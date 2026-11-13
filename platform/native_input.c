@@ -1068,6 +1068,19 @@ internal void NativeInput_OpenKnownControllers(void)
 	SDL_free(gamepads);
 }
 
+internal s32 NativeInput_SlotHasController(s32 slot)
+{
+	return (slot >= 0) && (slot < NATIVE_INPUT_MAX_CONTROLLERS) && (s_controllers[slot].controller != NULL) &&
+	       SDL_GamepadConnected(s_controllers[slot].controller);
+}
+
+int Platform_InputTouchPlayerHasController(void)
+{
+	// Touch composes into the primary pad only (NativeInput_ApplyTouch), so only its
+	// controller stands in for the touch controls.
+	return NativeInput_SlotHasController(0) && !SDL_IsJoystickVirtual(s_controllers[0].instanceId);
+}
+
 int Platform_InputInit(void)
 {
 	s32 slot;
@@ -1521,6 +1534,13 @@ internal s32 NativeInput_RunVirtualControllerSelfTest(void)
 	    (s_keyboardControllerSlot != (NativeInput_SharePrimaryInputSources() != 0 ? 0 : 1)))
 	{
 		failure = "virtual gamepad slot ownership";
+		goto CLEANUP;
+	}
+	// The app's own (here, the self-test's) virtual joystick owns pad 1 but is not
+	// a physical controller, so it must never hide the iPhone/iPad touch controls.
+	if (!NativeInput_SlotHasController(0) || (Platform_InputTouchPlayerHasController() != 0))
+	{
+		failure = "virtual gamepad counted as the touch player's controller";
 		goto CLEANUP;
 	}
 

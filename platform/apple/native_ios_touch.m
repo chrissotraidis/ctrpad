@@ -27,6 +27,8 @@ static NSString *const s_touchHandednessKey = @"CTRPadTouchHandedness";
 static NSString *const s_touchSizeKey = @"CTRPadTouchSize";
 static NSString *const s_touchOpacityKey = @"CTRPadTouchOpacity";
 static NSString *const s_touchEnabledKey = @"CTRPadTouchEnabled";
+// "Auto-hide Touch Controls with Controller"; on when nothing is saved.
+static NSString *const s_touchAutoHideKey = @"CTRPadTouchAutoHideWithController";
 static NSString *const s_simplifiedRacingControlsKey = @"CTRPadSimplifiedRacingControls";
 static NSString *const s_touchLayoutKeyPrefix = @"CTRPadTouchLayout";
 static NSString *const s_internalResolutionScaleKey = @"CTRPadInternalResolutionScale";
@@ -109,6 +111,9 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 @property(nonatomic, assign) CGFloat controlScale;
 @property(nonatomic, assign) CGFloat controlOpacity;
 @property(nonatomic, assign) BOOL touchControlsEnabled;
+// A controller on the primary pad has hidden the race controls (OPTIONS stays).
+@property(nonatomic, assign) BOOL hiddenByController;
+@property(nonatomic, strong) NSTimer *controllerTimer;
 @property(nonatomic, assign) BOOL simplifiedRacingControls;
 @property(nonatomic, assign) BOOL layoutEditing;
 @property(nonatomic, strong) CTRPadTouchSteeringZoneView *steeringZone;
@@ -138,6 +143,8 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 - (void)shrinkSelectedControl;
 - (void)growSelectedControl;
 - (void)presentDiscReselectionConfirmation;
+- (void)refreshControllerVisibility;
+- (void)showTouchControls;
 @end
 
 @interface CTRPadTouchSettingsViewController : UIViewController
@@ -148,6 +155,7 @@ static const CGFloat s_touchOpacityMaximum = 1.0;
 @property(nonatomic, strong) UILabel *opacityValueLabel;
 @property(nonatomic, strong) UISegmentedControl *internalResolutionControl;
 @property(nonatomic, strong) UISwitch *touchEnabledSwitch;
+@property(nonatomic, strong) UISwitch *autoHideSwitch;
 @property(nonatomic, strong) UISwitch *classicControlsSwitch;
 @property(nonatomic, strong) UIButton *editLayoutButton;
 @end
@@ -921,6 +929,29 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	touchEnabledRow.alignment = UIStackViewAlignmentCenter;
 	touchEnabledRow.distribution = UIStackViewDistributionEqualSpacing;
 
+	UILabel *autoHideLabel = [self sectionLabelWithText:@"Auto-hide with controller"];
+	self.autoHideSwitch = [[UISwitch alloc] init];
+	self.autoHideSwitch.on = CTRPadTouch_ReadPreference(s_touchAutoHideKey, 1, 1) != 0;
+	self.autoHideSwitch.accessibilityIdentifier = @"ctrpad.touch.settings.auto-hide";
+	self.autoHideSwitch.accessibilityLabel = @"Auto-hide Touch Controls with Controller";
+	[self.autoHideSwitch addTarget:self action:@selector(preferencesChanged) forControlEvents:UIControlEventValueChanged];
+	UIStackView *autoHideRow = [[UIStackView alloc] initWithArrangedSubviews:@[ autoHideLabel, self.autoHideSwitch ]];
+	autoHideRow.axis = UILayoutConstraintAxisHorizontal;
+	autoHideRow.alignment = UIStackViewAlignmentCenter;
+	autoHideRow.distribution = UIStackViewDistributionEqualSpacing;
+
+	// While a controller has hidden the race controls, the first thing Options offers
+	// is to bring them back. It turns auto-hide off so they stay with the controller.
+	UIButtonConfiguration *showConfiguration = [UIButtonConfiguration filledButtonConfiguration];
+	showConfiguration.title = @"Show Touch Controls";
+	showConfiguration.image = [UIImage systemImageNamed:@"hand.tap"];
+	showConfiguration.imagePadding = 8.0;
+	showConfiguration.baseBackgroundColor = [UIColor colorWithRed:0.13 green:0.42 blue:0.84 alpha:1.0];
+	UIButton *showButton = [UIButton buttonWithConfiguration:showConfiguration primaryAction:nil];
+	showButton.accessibilityIdentifier = @"ctrpad.touch.settings.show-touch";
+	[showButton addTarget:self action:@selector(showTouchControls) forControlEvents:UIControlEventTouchUpInside];
+	showButton.hidden = !self.overlayController.hiddenByController;
+
 	UILabel *classicControlsLabel = [self sectionLabelWithText:@"Classic controls"];
 	self.classicControlsSwitch = [[UISwitch alloc] init];
 	self.classicControlsSwitch.on = CTRPadTouch_ReadPreference(s_simplifiedRacingControlsKey, 1, 1) == 0;
@@ -1035,8 +1066,8 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
     buildLabel.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
 
 	UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[
-
-        [self cardWithViews:@[ [self sectionLabelWithText:@"TOUCH CONTROLS"], touchEnabledRow, classicControlsRow,
+        showButton,
+        [self cardWithViews:@[ [self sectionLabelWithText:@"TOUCH CONTROLS"], touchEnabledRow, autoHideRow, classicControlsRow,
             classicControlsHelp, self.editLayoutButton, [self sectionLabelWithText:@"Handedness"], self.handednessControl,
             [self sectionLabelWithText:@"Control size"], self.sizeControl, opacityTitleRow, self.opacitySlider ]],
         [self cardWithViews:@[ [self sectionLabelWithText:@"DIAGNOSTICS"], exportButton, diagnosticsHelp, buildLabel ]],
@@ -1119,6 +1150,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.internalResolutionControl.selectedSegmentIndex = appliedScale - 1;
 	[defaults setInteger:self.internalResolutionControl.selectedSegmentIndex forKey:s_internalResolutionScaleKey];
 	[defaults setBool:self.touchEnabledSwitch.on forKey:s_touchEnabledKey];
+	[defaults setBool:self.autoHideSwitch.on forKey:s_touchAutoHideKey];
 	[defaults setBool:!self.classicControlsSwitch.on forKey:s_simplifiedRacingControlsKey];
 	self.editLayoutButton.enabled = self.touchEnabledSwitch.on;
 	[self.overlayController applyPreferencesAndRebuildControls];
@@ -1131,6 +1163,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	[defaults removeObjectForKey:s_touchSizeKey];
 	[defaults removeObjectForKey:s_touchOpacityKey];
 	[defaults removeObjectForKey:s_touchEnabledKey];
+	[defaults removeObjectForKey:s_touchAutoHideKey];
 	[defaults removeObjectForKey:s_simplifiedRacingControlsKey];
 	[defaults removeObjectForKey:s_internalResolutionScaleKey];
 	self.handednessControl.selectedSegmentIndex = CTRPadTouchHandednessSteerLeft;
@@ -1138,6 +1171,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.opacitySlider.value = (float)CTRPadTouch_DefaultOpacity();
 	[self updateOpacityValueLabel];
 	self.touchEnabledSwitch.on = YES;
+	self.autoHideSwitch.on = YES;
 	self.classicControlsSwitch.on = NO;
 	self.internalResolutionControl.selectedSegmentIndex = 0;
 	NativeRenderer_SetInternalResolutionScale(1);
@@ -1145,6 +1179,13 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	[self.overlayController resetAllLayouts];
 	[self.overlayController applyPreferencesAndRebuildControls];
 	UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, @"Options reset to defaults.");
+}
+
+- (void)showTouchControls
+{
+	self.autoHideSwitch.on = NO;
+	[self.overlayController showTouchControls];
+	[self dismissViewControllerAnimated:YES completion:nil];
 }
 
 - (void)changeDisc
@@ -1420,12 +1461,56 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	NSNotificationCenter *notifications = NSNotificationCenter.defaultCenter;
 	[notifications addObserver:self selector:@selector(lifecycleWillSuspend:) name:UIApplicationWillResignActiveNotification object:nil];
 	[notifications addObserver:self selector:@selector(lifecycleWillSuspend:) name:UIApplicationDidEnterBackgroundNotification object:nil];
+	[notifications addObserver:self selector:@selector(refreshControllerVisibility) name:UIApplicationDidBecomeActiveNotification object:nil];
 	[self applyPreferencesAndRebuildControls];
+	// The input layer opens and closes controllers on SDL's gamepad events; the overlay
+	// follows its primary-pad answer twice a second (launch, connect, disconnect, return).
+	__weak CTRPadTouchOverlayViewController *weakSelf = self;
+	self.controllerTimer = [NSTimer scheduledTimerWithTimeInterval:0.5 repeats:YES block:^(__unused NSTimer *timer) {
+		[weakSelf refreshControllerVisibility];
+	}];
 }
 
 - (void)dealloc
 {
+	[self.controllerTimer invalidate];
 	[NSNotificationCenter.defaultCenter removeObserver:self];
+}
+
+// Race controls give way while a physical controller drives the primary pad and
+// auto-hide is on. OPTIONS stays, and the layout editor always shows the controls.
+- (void)refreshControllerVisibility
+{
+	const BOOL hide = self.touchControlsEnabled && !self.layoutEditing &&
+	                  (CTRPadTouch_ReadPreference(s_touchAutoHideKey, 1, 1) != 0) &&
+	                  (Platform_InputTouchPlayerHasController() != 0);
+	if (hide == self.hiddenByController)
+	{
+		return;
+	}
+	if (hide)
+	{
+		// Releases held buttons, the steering stick, and the latched gas and drift.
+		[self resetControlState];
+	}
+	self.hiddenByController = hide;
+	const BOOL visible = self.touchControlsEnabled && !hide;
+	for (UIView *control in self.editableControls)
+	{
+		control.hidden = !visible;
+		control.userInteractionEnabled = visible;
+	}
+	self.steeringZone.hidden = !visible || self.layoutEditing;
+	self.steeringZone.userInteractionEnabled = !self.steeringZone.hidden;
+	Platform_InputTouchSetEnabled(visible ? 1 : 0);
+}
+
+// Show Touch Controls: back on screen and working with the controller still
+// connected, until auto-hide is turned on again in Options.
+- (void)showTouchControls
+{
+	[NSUserDefaults.standardUserDefaults setBool:NO forKey:s_touchAutoHideKey];
+	[self refreshControllerVisibility];
 }
 
 - (void)lifecycleWillSuspend:(NSNotification *)notification
@@ -1566,6 +1651,9 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.layoutProfile = nil;
 	self.selectedControl = nil;
 	[self installLayoutEditor];
+	// The rebuilt controls start visible; hide them again if a controller is driving.
+	self.hiddenByController = NO;
+	[self refreshControllerVisibility];
 	[self.view setNeedsLayout];
 }
 
@@ -1765,7 +1853,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	                                    steeringZoneTop,
 	                                    steeringZoneWidth,
 	                                    CGRectGetMaxY(safe) - steeringZoneTop);
-	self.steeringZone.hidden = !self.touchControlsEnabled || self.layoutEditing;
+	self.steeringZone.hidden = !self.touchControlsEnabled || self.layoutEditing || self.hiddenByController;
 	self.steeringZone.userInteractionEnabled = self.touchControlsEnabled && !self.layoutEditing;
 
 	for (UIView *control in self.editableControls)
@@ -1963,6 +2051,17 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	}
 	[self resetControlState];
 	self.layoutEditing = YES;
+	if (self.hiddenByController)
+	{
+		// Editing stays possible with a controller: show the controls to move them.
+		self.hiddenByController = NO;
+		for (UIView *control in self.editableControls)
+		{
+			control.hidden = !self.touchControlsEnabled;
+			control.userInteractionEnabled = self.touchControlsEnabled;
+		}
+		Platform_InputTouchSetEnabled(self.touchControlsEnabled ? 1 : 0);
+	}
 	self.steeringZone.layoutEditing = YES;
 	self.steeringZone.hidden = YES;
 	self.steeringZone.userInteractionEnabled = NO;
@@ -2019,6 +2118,7 @@ static CGFloat CTRPadTouch_RelativeOpacity(CGFloat opacity)
 	self.selectedControl = nil;
 	self.editorPanel.hidden = YES;
 	[self.view setNeedsLayout];
+	[self refreshControllerVisibility];
 	UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, @"Touch layout saved.");
 }
 
@@ -2107,7 +2207,7 @@ int NativeIOSTouch_Begin(NativeIOSTouchDiscReselectionCallback discReselectionCa
 	[parent.view bringSubviewToFront:overlay];
 	[controller didMoveToParentViewController:parent];
 	s_touchOverlayController = controller;
-	Platform_InputTouchSetEnabled(controller.touchControlsEnabled ? 1 : 0);
+	Platform_InputTouchSetEnabled(controller.touchControlsEnabled && !controller.hiddenByController ? 1 : 0);
 	return 1;
 }
 

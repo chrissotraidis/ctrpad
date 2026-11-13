@@ -73,6 +73,9 @@ void Platform_InputTouchSetEnabled(int enabled);
 void Platform_InputTouchButton(unsigned int buttonMask, int down);
 void Platform_InputTouchLeftStick(int x, int y, int active);
 void Platform_InputTouchReset(void);
+// A physical controller owns the primary pad, which the touch controls also drive.
+// Controllers on later pads, and SDL virtual joysticks, do not count.
+int Platform_InputTouchPlayerHasController(void);
 void Platform_InputControllerAdded(int deviceIndex);
 void Platform_InputControllerRemoved(int instanceId);
 int Platform_InputCycleKeyboardController(void);
