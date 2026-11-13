@@ -339,6 +339,9 @@ static UIImage *SDL_LoadLaunchImageNamed(NSString *name, int screenh)
 @end // SDLLaunchScreenController
 
 
+// Set once the application scene has started the application's main function.
+static bool scene_main_started;
+
 API_AVAILABLE(ios(13.0))
 @implementation SDLUIKitSceneDelegate
 {
@@ -359,6 +362,30 @@ API_AVAILABLE(ios(13.0))
 
     UIWindowScene *windowScene = (UIWindowScene *)scene;
     windowScene.delegate = self;
+
+#ifndef SDL_PLATFORM_VISIONOS
+    /* The application runs in the first application scene. Any other scene, such
+     * as an external display's, must not show a launch screen or start the
+     * application a second time. */
+    if (![session.role isEqualToString:UIWindowSceneSessionRoleApplication]) {
+        return;
+    }
+    UIWindowScene *owner = UIKit_GetOwningWindowScene();
+    if (owner && owner != windowScene) {
+        return;
+    }
+    UIKit_SetOwningWindowScene(windowScene);
+    if (scene_main_started) {
+#ifndef SDL_PLATFORM_TVOS
+        if (!owner) {
+            // A replacement for a disconnected owning scene adopts SDL's windows.
+            UIKit_AdoptOwningScene(windowScene);
+        }
+#endif
+        return;
+    }
+    scene_main_started = true;
+#endif
 
     NSBundle *bundle = [NSBundle mainBundle];
 
@@ -428,23 +455,51 @@ API_AVAILABLE(ios(13.0))
 
 - (void)sceneDidBecomeActive:(UIScene *)scene
 {
-    SDL_OnApplicationDidEnterForeground();
+    if (UIKit_IsOwningScene(scene)) {
+        SDL_OnApplicationDidEnterForeground();
+    }
 }
 
 - (void)sceneWillResignActive:(UIScene *)scene
 {
-    SDL_OnApplicationWillEnterBackground();
+    if (UIKit_IsOwningScene(scene)) {
+        SDL_OnApplicationWillEnterBackground();
+    }
 }
 
 - (void)sceneWillEnterForeground:(UIScene *)scene
 {
-    SDL_OnApplicationWillEnterForeground();
+    if (UIKit_IsOwningScene(scene)) {
+        SDL_OnApplicationWillEnterForeground();
+    }
 }
 
 - (void)sceneDidEnterBackground:(UIScene *)scene
 {
-    SDL_OnApplicationDidEnterBackground();
+    if (UIKit_IsOwningScene(scene)) {
+        SDL_OnApplicationDidEnterBackground();
+    }
 }
+
+- (void)sceneDidDisconnect:(UIScene *)scene
+{
+    UIKit_OwningSceneDidDisconnect(scene);
+}
+
+#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
+- (void)windowScene:(UIWindowScene *)windowScene didUpdateCoordinateSpace:(id<UICoordinateSpace>)previousCoordinateSpace interfaceOrientation:(UIInterfaceOrientation)previousInterfaceOrientation traitCollection:(UITraitCollection *)previousTraitCollection
+{
+    if (@available(iOS 26.0, *)) {
+        return; // windowScene:didUpdateEffectiveGeometry: reports the change
+    }
+    UIKit_OnWindowSceneGeometryChanged(windowScene);
+}
+
+- (void)windowScene:(UIWindowScene *)windowScene didUpdateEffectiveGeometry:(UIWindowSceneGeometry *)previousEffectiveGeometry API_AVAILABLE(ios(26.0))
+{
+    UIKit_OnWindowSceneGeometryChanged(windowScene);
+}
+#endif
 
 - (void)handleURL:(NSURL *)url
 {
@@ -505,7 +560,15 @@ API_AVAILABLE(ios(13.0))
 {
     // This doesn't appear to be called, but it needs to be implemented to signal that we support the UIScene life cycle
     UISceneConfiguration *config = [[UISceneConfiguration alloc] initWithName:@"SDLSceneConfiguration" sessionRole:connectingSceneSession.role];
+#ifndef SDL_PLATFORM_VISIONOS
+    /* Claim only application scenes. An external display's scene without an SDL
+     * window keeps the system default (mirroring or an extended display). */
+    if ([connectingSceneSession.role isEqualToString:UIWindowSceneSessionRoleApplication]) {
+        config.delegateClass = [SDLUIKitSceneDelegate class];
+    }
+#else
     config.delegateClass = [SDLUIKitSceneDelegate class];
+#endif
     return config;
 }
 

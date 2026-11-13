@@ -28,6 +28,12 @@ directly. Do not replace the app repository or replay patches during builds.
   upstream-only `AGENTS.md` remains omitted. A subsequent UIKit correction sizes
   replacement root views to the current window bounds before attaching them,
   preventing portrait-sized rendering and controls after a landscape cold launch.
+  The scene-geometry correction shared with the other SDL3 Pad ports
+  (chrissotraidis/wiicompiled#28, galaxypad-engine#1) makes SDL run the app
+  only in the application scene it started in, leaves an external display's
+  scene to the system (mirroring or an extended display), adopts a replacement
+  scene if iOS discards the first, and takes orientation from that scene's
+  effectiveGeometry instead of statusBarOrientation.
   Zlib license.
 - PSn00bSDK: the tracked header subset at `include/psn00bsdk`, inherited at
   the CTR Native base above, with its own exact tree in the lock. MPL-2.0
