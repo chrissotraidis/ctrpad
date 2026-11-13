@@ -42,6 +42,15 @@ extern CGRect UIKit_ComputeViewFrame(SDL_Window *window, UIScreen *screen);
 #endif
 
 extern API_AVAILABLE(ios(13.0)) UIWindowScene *UIKit_GetActiveWindowScene(void);
+extern API_AVAILABLE(ios(13.0)) UIWindowScene *UIKit_GetOwningWindowScene(void);
+extern API_AVAILABLE(ios(13.0)) void UIKit_SetOwningWindowScene(UIWindowScene *scene);
+extern void UIKit_OwningSceneDidDisconnect(UIScene *scene);
+extern bool UIKit_IsOwningScene(UIScene *scene);
+#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
+extern UIInterfaceOrientation UIKit_GetInterfaceOrientation(void);
+extern API_AVAILABLE(ios(13.0)) void UIKit_OnWindowSceneGeometryChanged(UIWindowScene *scene);
+extern API_AVAILABLE(ios(13.0)) void UIKit_AdoptOwningScene(UIWindowScene *scene);
+#endif
 
 extern void UIKit_SetGameControllerInteraction(bool enabled);
 extern void UIKit_SetViewGameControllerInteraction(UIView *view, bool enabled);

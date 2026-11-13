@@ -244,7 +244,15 @@ CGRect UIKit_ComputeViewFrame(SDL_Window *window, UIScreen *screen)
 
     /* The orientation flip doesn't make sense when the window is smaller
      * than the screen (iPad Split View, for example). */
-    if (fullscreen && (landscape != (frame.size.width > frame.size.height))) {
+    BOOL scene_window = NO;
+    if (@available(iOS 13.0, *)) {
+        /* A window in a scene is sized by that scene: its bounds already follow
+         * the scene's interface orientation and screen (including an external
+         * display), and the application-wide status bar orientation may belong
+         * to another scene or be unknown. */
+        scene_window = (data != nil && data.uiwindow.windowScene != nil);
+    }
+    if (!scene_window && fullscreen && (landscape != (frame.size.width > frame.size.height))) {
         float height = frame.size.width;
         frame.size.width = frame.size.height;
         frame.size.height = height;
@@ -255,14 +263,91 @@ CGRect UIKit_ComputeViewFrame(SDL_Window *window, UIScreen *screen)
 }
 #endif // SDL_PLATFORM_VISIONOS
 
+// The application scene SDL started in (see SDLUIKitSceneDelegate).
+static __weak UIWindowScene *UIKit_owning_scene API_AVAILABLE(ios(13.0));
+
+UIWindowScene *UIKit_GetOwningWindowScene(void)
+{
+    if (@available(iOS 13.0, tvOS 13.0, *)) {
+        return UIKit_owning_scene;
+    }
+    return nil;
+}
+
+void UIKit_SetOwningWindowScene(UIWindowScene *scene)
+{
+    if (@available(iOS 13.0, tvOS 13.0, *)) {
+        UIKit_owning_scene = scene;
+    }
+}
+
+void UIKit_OwningSceneDidDisconnect(UIScene *scene)
+{
+    /* UIKit can keep a disconnected scene object alive for seconds, so the weak
+     * reference alone does not clear it; a replacement scene then adopts SDL's windows. */
+    if (@available(iOS 13.0, tvOS 13.0, *)) {
+        if (scene == UIKit_owning_scene) {
+            UIKit_owning_scene = nil;
+        }
+    }
+}
+
+// Only an application scene can run the app; an external display's scene keeps the system default.
+static bool UIKit_IsApplicationScene(UIScene *scene)
+{
+#ifndef SDL_PLATFORM_VISIONOS
+    if (@available(iOS 13.0, tvOS 13.0, *)) {
+        return [scene.session.role isEqualToString:UIWindowSceneSessionRoleApplication];
+    }
+#endif
+    return true;
+}
+
+bool UIKit_IsOwningScene(UIScene *scene)
+{
+    if (@available(iOS 13.0, tvOS 13.0, *)) {
+        UIWindowScene *owner = UIKit_GetOwningWindowScene();
+        if (owner) {
+            return owner == scene;
+        }
+        return UIKit_IsApplicationScene(scene);
+    }
+    return true;
+}
+
+#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
+UIInterfaceOrientation UIKit_GetInterfaceOrientation(void)
+{
+    if (@available(iOS 13.0, *)) {
+        UIWindowScene *scene = UIKit_GetActiveWindowScene();
+        if (scene) {
+            if (@available(iOS 16.0, *)) {
+                return scene.effectiveGeometry.interfaceOrientation;
+            }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            return scene.interfaceOrientation;
+#pragma clang diagnostic pop
+        }
+    }
+    return [UIApplication sharedApplication].statusBarOrientation;
+}
+#endif
+
 UIWindowScene *UIKit_GetActiveWindowScene(void)
 {
     if (@available(iOS 13.0, tvOS 13.0, *)) {
         NSSet<UIScene *> *connectedScenes = [UIApplication sharedApplication].connectedScenes;
 
+        // Prefer the scene the application runs in over any other connected scene
+        UIWindowScene *owner = UIKit_GetOwningWindowScene();
+        if (owner) {
+            return owner;
+        }
+
         // First, try to find an active foreground scene
         for (UIScene *scene in connectedScenes) {
-            if ([scene isKindOfClass:[UIWindowScene class]]) {
+            if ([scene isKindOfClass:[UIWindowScene class]] && UIKit_IsApplicationScene(scene)) {
                 UIWindowScene *windowScene = (UIWindowScene *)scene;
                 if (windowScene.activationState == UISceneActivationStateForegroundActive) {
                     return windowScene;
@@ -272,7 +357,7 @@ UIWindowScene *UIKit_GetActiveWindowScene(void)
 
         // If no active scene, return any foreground scene
         for (UIScene *scene in connectedScenes) {
-            if ([scene isKindOfClass:[UIWindowScene class]]) {
+            if ([scene isKindOfClass:[UIWindowScene class]] && UIKit_IsApplicationScene(scene)) {
                 UIWindowScene *windowScene = (UIWindowScene *)scene;
                 if (windowScene.activationState == UISceneActivationStateForegroundInactive) {
                     return windowScene;
@@ -282,7 +367,7 @@ UIWindowScene *UIKit_GetActiveWindowScene(void)
 
         // Last resort: return first window scene
         for (UIScene *scene in connectedScenes) {
-            if ([scene isKindOfClass:[UIWindowScene class]]) {
+            if ([scene isKindOfClass:[UIWindowScene class]] && UIKit_IsApplicationScene(scene)) {
                 return (UIWindowScene *)scene;
             }
         }

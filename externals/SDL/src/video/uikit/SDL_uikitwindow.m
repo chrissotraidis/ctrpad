@@ -59,15 +59,6 @@ static bool SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, UIWindow
     SDL_UIKitDisplayData *displaydata = (__bridge SDL_UIKitDisplayData *)display->internal;
     SDL_uikitview *view;
 
-#ifdef SDL_PLATFORM_VISIONOS
-    CGRect frame = UIKit_ComputeViewFrame(window);
-#else
-    CGRect frame = UIKit_ComputeViewFrame(window, displaydata.uiscreen);
-#endif
-
-    int width = (int)frame.size.width;
-    int height = (int)frame.size.height;
-
     SDL_UIKitWindowData *data = [[SDL_UIKitWindowData alloc] init];
     if (!data) {
         return SDL_OutOfMemory();
@@ -76,6 +67,16 @@ static bool SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, UIWindow
     window->internal = (SDL_WindowData *)CFBridgingRetain(data);
 
     data.uiwindow = uiwindow;
+
+    // Compute the frame once the UIWindow is known, so a scene window uses its own bounds.
+#ifdef SDL_PLATFORM_VISIONOS
+    CGRect frame = UIKit_ComputeViewFrame(window);
+#else
+    CGRect frame = UIKit_ComputeViewFrame(window, displaydata.uiscreen);
+#endif
+
+    int width = (int)frame.size.width;
+    int height = (int)frame.size.height;
 
 #ifndef SDL_PLATFORM_VISIONOS
     if (displaydata.uiscreen != [UIScreen mainScreen]) {
@@ -387,6 +388,63 @@ void UIKit_GetWindowSizeInPixels(SDL_VideoDevice *_this, SDL_Window *window, int
         *h = (int)(size.height * scale);
     }
 }
+
+#if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
+/* The application scene changed size, orientation or screen: bring the display
+ * orientation and each of its windows' layout and Metal scale up to date, so the
+ * usual resize and pixel-size events follow. */
+void UIKit_OnWindowSceneGeometryChanged(UIWindowScene *scene)
+{
+    @autoreleasepool {
+        SDL_VideoDevice *_this = SDL_GetVideoDevice();
+        SDL_Window *window;
+
+        if (!_this || scene != UIKit_GetOwningWindowScene()) {
+            return;
+        }
+
+        SDL_OnApplicationDidChangeStatusBarOrientation();
+
+        for (window = _this->windows; window; window = window->next) {
+            SDL_UIKitWindowData *data = (__bridge SDL_UIKitWindowData *)window->internal;
+            UIView *view = data.viewcontroller.view;
+            if (!data || data.uiwindow.windowScene != scene || !view) {
+                continue;
+            }
+            if ((window->flags & SDL_WINDOW_HIGH_PIXEL_DENSITY) && view.tag == SDL_METALVIEW_TAG) {
+                view.layer.contentsScale = data.uiwindow.screen.nativeScale;
+            }
+            [view setNeedsLayout];
+        }
+    }
+}
+
+/* iOS discarded the scene SDL started in and connected a new application scene:
+ * move SDL's orphaned windows onto it instead of leaving them blank. */
+void UIKit_AdoptOwningScene(UIWindowScene *scene)
+{
+    @autoreleasepool {
+        SDL_VideoDevice *_this = SDL_GetVideoDevice();
+        SDL_Window *window;
+
+        if (!_this) {
+            return;
+        }
+
+        for (window = _this->windows; window; window = window->next) {
+            SDL_UIKitWindowData *data = (__bridge SDL_UIKitWindowData *)window->internal;
+            if (!data || !data.uiwindow || data.uiwindow.windowScene != nil) {
+                continue;
+            }
+            data.uiwindow.windowScene = scene;
+            if (!(window->flags & SDL_WINDOW_HIDDEN)) {
+                [data.uiwindow makeKeyAndVisible];
+            }
+        }
+        UIKit_OnWindowSceneGeometryChanged(scene);
+    }
+}
+#endif
 
 #ifndef SDL_PLATFORM_TVOS
 NSUInteger

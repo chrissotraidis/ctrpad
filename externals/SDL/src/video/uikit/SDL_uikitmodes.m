@@ -330,7 +330,7 @@ bool UIKit_IsDisplayLandscape(UIScreen *uiscreen)
 {
 #ifndef SDL_PLATFORM_TVOS
     if (uiscreen == [UIScreen mainScreen]) {
-        return UIInterfaceOrientationIsLandscape([UIApplication sharedApplication].statusBarOrientation);
+        return UIInterfaceOrientationIsLandscape(UIKit_GetInterfaceOrientation());
     } else
 #endif // !SDL_PLATFORM_TVOS
     {
@@ -484,7 +484,8 @@ void UIKit_QuitModes(SDL_VideoDevice *_this)
 #if !defined(SDL_PLATFORM_TVOS) && !defined(SDL_PLATFORM_VISIONOS)
 void SDL_OnApplicationDidChangeStatusBarOrientation(void)
 {
-    BOOL isLandscape = UIInterfaceOrientationIsLandscape([UIApplication sharedApplication].statusBarOrientation);
+    UIInterfaceOrientation interfaceOrientation = UIKit_GetInterfaceOrientation();
+    BOOL isLandscape = UIInterfaceOrientationIsLandscape(interfaceOrientation);
     SDL_VideoDisplay *display = SDL_GetVideoDisplay(SDL_GetPrimaryDisplay());
 
     if (display) {
@@ -518,7 +519,7 @@ void SDL_OnApplicationDidChangeStatusBarOrientation(void)
             }
         }
 
-        switch ([UIApplication sharedApplication].statusBarOrientation) {
+        switch (interfaceOrientation) {
         case UIInterfaceOrientationPortrait:
             orientation = SDL_ORIENTATION_PORTRAIT;
             break;
